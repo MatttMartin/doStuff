@@ -1,6 +1,6 @@
 # backend/seed.py
-from .db import engine, SessionLocal
-from .models import Level, Base
+from db import engine, SessionLocal
+from models import Level, Base
 
 Base.metadata.create_all(bind=engine)
 

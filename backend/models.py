@@ -3,7 +3,7 @@ from sqlalchemy import BigInteger, Integer, Text, Boolean, TIMESTAMP, ForeignKey
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import UUID
 from typing import Optional
-from .db import Base
+from db import Base
 import uuid
 
 # USERS
