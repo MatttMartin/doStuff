@@ -9,8 +9,9 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from .db import SessionLocal, Base, engine
-from .models import Level, Run, RunStep
+from db import SessionLocal, Base, engine
+from models import Level, Run, RunStep
+
 from supabase import create_client
 
 
