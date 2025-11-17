@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 export default function ChallengePage() {
 	const [challenge, setChallenge] = useState<any>(null);
 	const [timeLeft, setTimeLeft] = useState(0);
-	const [file, setFile] = useState<File | null>(null);
+	const [_file, setFile] = useState<File | null>(null);
 	const [preview, setPreview] = useState<string | null>(null);
 
 	// Fetch the first challenge
