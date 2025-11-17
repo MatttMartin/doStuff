@@ -1,23 +1,29 @@
 # backend/main.py
 from typing import Optional
-from uuid import UUID
+from uuid import UUID, uuid4
 from datetime import datetime
 import secrets
 import os
 
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from sqlalchemy.orm import Session
+
+# Local project imports
 from db import SessionLocal, Base, engine
-from models import Level, Run, RunStep
+import models
+from models import Level, Run, RunStep, User  # ensure User exists in models.py
 
 from supabase import create_client
 
 
+# ---------------------------------------------------
+# FastAPI App + CORS
+# ---------------------------------------------------
 app = FastAPI()
 
-# Allow Vite dev server
 origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
 origins = [o.strip() for o in origins if o.strip()]
 
@@ -29,45 +35,56 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Create tables if needed
+# Auto-create tables
 Base.metadata.create_all(bind=engine)
 
-# --------------------------------------
+
+# ---------------------------------------------------
+# DB Dependency (FastAPI style)
+# ---------------------------------------------------
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------
 # Health
-# --------------------------------------
+# ---------------------------------------------------
 @app.get("/health")
 def health():
     return {"ok": True}
 
-# --------------------------------------
-# LEVELS
-# --------------------------------------
-@app.get("/levels")
-def get_levels():
-    db = SessionLocal()
-    try:
-        rows = db.query(Level).all()
-        return [
-            {
-                "id": r.id,
-                "title": r.title,
-                "description": r.description,
-                "category": r.category,
-                "difficulty": r.difficulty,
-                "seconds_limit": r.seconds_limit,
-            }
-            for r in rows
-        ]
-    finally:
-        db.close()
 
-# --------------------------------------
+# ---------------------------------------------------
+# LEVELS
+# ---------------------------------------------------
+@app.get("/levels")
+def get_levels(db: Session = Depends(get_db)):
+    rows = db.query(Level).all()
+    return [
+        {
+            "id": r.id,
+            "title": r.title,
+            "description": r.description,
+            "category": r.category,
+            "difficulty": r.difficulty,
+            "seconds_limit": r.seconds_limit,
+        }
+        for r in rows
+    ]
+
+
+# ---------------------------------------------------
 # RUNS + STEPS
-# --------------------------------------
+# ---------------------------------------------------
 class RunCreate(BaseModel):
     user_id: UUID
     caption: Optional[str] = None
     public: bool = True
+
 
 class StepCreate(BaseModel):
     level_id: int
@@ -76,132 +93,92 @@ class StepCreate(BaseModel):
 
 
 @app.post("/runs")
-def create_run(payload: RunCreate):
-    db = SessionLocal()
-    try:
-        run = Run(
-            user_id=payload.user_id,
-            caption=payload.caption,
-            public=payload.public,
-        )
-        db.add(run)
+def create_run(run: RunCreate, db: Session = Depends(get_db)):
+    """
+    Creates a run, ensuring user exists first.
+    """
+
+    # Make sure user exists (fixes FK error)
+    user = db.query(User).filter(User.id == run.user_id).first()
+    if not user:
+        new_user = User(id=run.user_id,
+                        username=run.user_id)
+        db.add(new_user)
         db.commit()
-        db.refresh(run)
-        return {"id": str(run.id)}
-    finally:
-        db.close()
+
+    # Create run
+    db_run = Run(
+        id=uuid4(),
+        user_id=run.user_id,
+        caption=run.caption,
+        public=run.public,
+        finished_at=None,
+    )
+
+    db.add(db_run)
+    db.commit()
+    db.refresh(db_run)
+    return {"id": str(db_run.id), "started_at": db_run.started_at}
 
 
 @app.post("/runs/{run_id}/steps")
-def add_step(run_id: UUID, payload: StepCreate):
-    db = SessionLocal()
-    try:
-        run = db.query(Run).filter(Run.id == run_id).first()
-        if not run:
-            raise HTTPException(status_code=404, detail="run not found")
+def add_step(run_id: UUID, payload: StepCreate, db: Session = Depends(get_db)):
+    run = db.query(Run).filter(Run.id == run_id).first()
+    if not run:
+        raise HTTPException(status_code=404, detail="run not found")
 
-        step = RunStep(
-            run_id=run_id,
-            level_id=payload.level_id,
-            completed=payload.completed,
-            proof_url=payload.proof_url,
-            completed_at=datetime.utcnow(),
-        )
+    step = RunStep(
+        run_id=run_id,
+        level_id=payload.level_id,
+        completed=payload.completed,
+        proof_url=payload.proof_url,
+        completed_at=datetime.utcnow(),
+    )
 
-        db.add(step)
-        db.commit()
-        db.refresh(step)
-        return {"id": step.id}
-    finally:
-        db.close()
+    db.add(step)
+    db.commit()
+    db.refresh(step)
 
+    return {"id": str(step.id)}
 
-# ---------------------------------------------------
-# RUN DETAIL (merged steps + level info)
-# ---------------------------------------------------
-@app.get("/runs/{run_id}")
-def get_run_detail(run_id: UUID):
-    db = SessionLocal()
-    try:
-        run = db.query(Run).filter(Run.id == run_id).first()
-        if not run:
-            raise HTTPException(status_code=404, detail="Run not found")
-
-        rows = (
-            db.query(RunStep, Level)
-            .join(Level, RunStep.level_id == Level.id)
-            .filter(RunStep.run_id == run_id)
-            .order_by(RunStep.completed_at.asc())
-            .all()
-        )
-
-        steps = []
-        for step, level in rows:
-            steps.append(
-                {
-                    "id": step.id,
-                    "level_id": level.id,
-                    "level_title": level.title,
-                    "proof_url": step.proof_url,
-                    "completed": step.completed,
-                    "completed_at": step.completed_at.isoformat()
-                    if step.completed_at else None,
-                }
-            )
-
-        return {
-            "id": str(run.id),
-            "user_id": str(run.user_id),
-            "caption": run.caption,
-            "public": run.public,
-            "started_at": run.started_at,
-            "finished_at": run.finished_at,
-            "steps": steps,
-        }
-    finally:
-        db.close()
 
 
 # ---------------------------------------------------
 # RUN LIST FOR USER
 # ---------------------------------------------------
 @app.get("/runs/by-user/{user_id}")
-def list_runs_for_user(user_id: UUID):
-    db = SessionLocal()
-    try:
-        runs = (
-            db.query(Run)
-            .filter(Run.user_id == user_id)
-            .order_by(Run.started_at.desc())
-            .all()
+def list_runs_for_user(user_id: UUID, db: Session = Depends(get_db)):
+    runs = (
+        db.query(Run)
+        .filter(Run.user_id == user_id)
+        .order_by(Run.started_at.desc())
+        .all()
+    )
+
+    result = []
+    for r in runs:
+        steps_completed = (
+            db.query(RunStep)
+            .filter(RunStep.run_id == r.id, RunStep.completed == True)
+            .count()
         )
 
-        result = []
-        for r in runs:
-            steps_completed = (
-                db.query(RunStep)
-                .filter(RunStep.run_id == r.id, RunStep.completed == True)
-                .count()
-            )
+        result.append(
+            {
+                "id": str(r.id),
+                "caption": r.caption,
+                "public": bool(r.public),
+                "created_at": r.started_at.isoformat()
+                if r.started_at else None,
+                "steps_completed": steps_completed,
+            }
+        )
 
-            result.append(
-                {
-                    "id": str(r.id),
-                    "caption": r.caption,
-                    "public": bool(r.public),
-                    "created_at": r.started_at.isoformat()
-                        if r.started_at else None,
-                    "steps_completed": steps_completed,
-                }
-            )
-
-        return result
-    finally:
-        db.close()
+    return result
 
 
 # ---------------------------------------------------
-# IMAGE UPLOAD TO SUPABASE
+# SUPABASE UPLOAD
 # ---------------------------------------------------
 def _supabase():
     url = os.getenv("SUPABASE_URL")

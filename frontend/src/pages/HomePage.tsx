@@ -1,13 +1,7 @@
 export default function HomePage() {
 	return (
-		<div className="relative min-h-screen flex flex-col items-center justify-center">
-			<h1
-				className="
-        text-6xl font-['VT323'] tracking-tight text-neutral-100
-        drop-shadow-[0_0_10px_rgba(255,255,255,0.15)]
-        animate-[shimmer_8s_ease_infinite]
-      "
-			>
+		<div className="relative min-h-screen flex flex-col items-center justify-center px-4 text-center">
+			<h1 className="text-6xl md:text-7xl font-['VT323'] text-neutral-100 drop-shadow-[0_0_10px_rgba(255,255,255,0.15)] animate-[shimmer_8s_ease_infinite]">
 				Do Stuff
 			</h1>
 
@@ -17,12 +11,12 @@ export default function HomePage() {
 
 			<button
 				className="
-          mt-12 px-10 py-4 text-xl font-['VT323']
-          bg-neutral-900 border border-neutral-700 rounded-xl
-          hover:border-white hover:shadow-[0_0_15px_rgba(255,255,255,0.2)]
-          transition-all duration-300
-          animate-[breathe_4s_ease_in_out_infinite]
-        "
+					mt-12 px-12 py-4 text-2xl font-['VT323']
+					bg-neutral-900 border border-neutral-700 rounded-xl
+					hover:border-white hover:shadow-[0_0_15px_rgba(255,255,255,0.2)]
+					transition-all duration-300
+					animate-[breathe_4s_ease_in_out_infinite]
+				"
 				onClick={() => (window.location.href = "/challenge")}
 			>
 				START
