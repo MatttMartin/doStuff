@@ -11,7 +11,6 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from db import SessionLocal, Base, engine
-import models
 from models import Level, Run, RunStep, User
 
 from supabase import create_client
