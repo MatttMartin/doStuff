@@ -1,3 +1,5 @@
+import LoadingOverlay from "../LoadingOverlay";
+
 import React, { useEffect, useState } from "react";
 
 const API_BASE = import.meta.env.VITE_API_BASE as string;
@@ -460,6 +462,8 @@ export default function ChallengePage() {
 
 	return (
 		<div className="w-full min-h-screen flex items-center justify-center px-4 text-center font-['VT323'] text-neutral-100">
+			{loading && <LoadingOverlay />}
+
 			<div className="w-full max-w-md space-y-10">
 				<p className="text-neutral-500 font-mono tracking-wide">LEVEL {challenge.level_number}</p>
 
