@@ -141,8 +141,8 @@ export default function SummaryPage() {
 	}
 
 	return (
-		<div className="min-h-screen w-full px-4 py-10 flex flex-col items-center text-neutral-100 font-['VT323']">
-			<h1 className="text-4xl sm:text-5xl md:text-6xl mb-8 tracking-[0.3em] text-center drop-shadow-[0_0_12px_rgba(255,255,255,0.35)]">
+		<div className="min-h-screen w-full px-4 py-5 flex flex-col items-center text-neutral-100 font-['VT323']">
+			<h1 className="text-3xl sm:text-4xl md:text-5xl mb-4 tracking-[0.3em] text-center drop-shadow-[0_0_12px_rgba(255,255,255,0.35)]">
 				RUN SUMMARY
 			</h1>
 
@@ -170,13 +170,6 @@ export default function SummaryPage() {
 												<div className="text-neutral-600 font-mono text-xs">no proof</div>
 											)}
 										</div>
-
-										<p className="text-[11px] text-neutral-400 font-mono mt-1">{formatStatus(s)}</p>
-										{s.completed_at && (
-											<p className="text-[11px] text-neutral-500 font-mono mt-[2px] mb-1">
-												{formatDate(s.completed_at)}
-											</p>
-										)}
 									</div>
 								</div>
 							))}
@@ -206,50 +199,43 @@ export default function SummaryPage() {
 						</>
 					)}
 
-					{/* Dots row + trash icon */}
-					<div className="mt-2 flex items-center justify-between">
-						{/* left: trash with a little inset padding */}
-						<div className="flex-1 flex justify-start pl-6 sm:pl-4">
-							<button
-								type="button"
-								onClick={handleDelete}
-								className="flex items-center justify-center p-1 text-red-500 hover:text-red-300 transition-transform duration-150 hover:scale-110"
-								aria-label="Delete run"
-							>
-								<svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.2">
-									<rect x="4" y="5" width="8" height="9" rx="1" />
-									<path d="M3 5h10" />
-									<path d="M6 3h4l1 2H5z" />
-									<path d="M7 7v5" />
-									<path d="M9 7v5" />
-								</svg>
-							</button>
-						</div>
+					{/* Dots row + trash icon (trash doesn't affect centering) */}
+					<div className="mt-2 relative flex items-center justify-center">
+						{/* Trash – anchored to left, dots stay perfectly centered */}
+						<button
+							type="button"
+							onClick={handleDelete}
+							className="absolute left-6 sm:left-4 flex items-center justify-center p-1 text-red-500 hover:text-red-300 transition-transform duration-150 hover:scale-110"
+							aria-label="Delete run"
+						>
+							<svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.2">
+								<rect x="4" y="5" width="8" height="9" rx="1" />
+								<path d="M3 5h10" />
+								<path d="M6 3h4l1 2H5z" />
+								<path d="M7 7v5" />
+								<path d="M9 7v5" />
+							</svg>
+						</button>
 
-						{/* center: dots */}
-						<div className="flex-1 flex justify-center">
-							{steps.length > 1 && (
-								<div className="flex justify-center gap-2">
-									{steps.map((_, i) => (
-										<button
-											key={i}
-											type="button"
-											onClick={() => scrollTo(i)}
-											className={
-												"w-2 h-2 rounded-full transition-all duration-200 " +
-												(i === selectedIndex
-													? "bg-cyan-400 shadow-[0_0_8px_rgba(0,255,255,0.75)] scale-110"
-													: "bg-neutral-700 hover:bg-neutral-400")
-											}
-											aria-label={`Go to challenge ${i + 1}`}
-										/>
-									))}
-								</div>
-							)}
-						</div>
-
-						{/* right spacer to keep dots perfectly centered */}
-						<div className="flex-1" />
+						{/* Centered dots */}
+						{steps.length > 1 && (
+							<div className="flex justify-center gap-2">
+								{steps.map((_, i) => (
+									<button
+										key={i}
+										type="button"
+										onClick={() => scrollTo(i)}
+										className={
+											"w-2 h-2 rounded-full transition-all duration-200 " +
+											(i === selectedIndex
+												? "bg-cyan-400 shadow-[0_0_8px_rgba(0,255,255,0.75)] scale-110"
+												: "bg-neutral-700 hover:bg-neutral-400")
+										}
+										aria-label={`Go to challenge ${i + 1}`}
+									/>
+								))}
+							</div>
+						)}
 					</div>
 				</div>
 
