@@ -1,5 +1,5 @@
 // src/pages/SummaryPage.tsx
-import React, { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 
 const API_BASE = import.meta.env.VITE_API_BASE as string;
