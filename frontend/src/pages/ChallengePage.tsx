@@ -1,4 +1,4 @@
-import LoadingOverlay from "../LoadingOverlay";
+import LoadingOverlay from "../loadingOverlay";
 
 import React, { useEffect, useState } from "react";
 
