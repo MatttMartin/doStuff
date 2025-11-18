@@ -393,10 +393,12 @@ export default function ChallengePage() {
 	async function handleSubmitWithProof() {
 		if (!runId || !challenge) return;
 
+		// ⭐ Immediately show loading screen
+		setLoading(true);
+
 		try {
 			const url = await uploadProof();
 
-			// success → submit normally
 			await fetch(`${API_BASE}/runs/${runId}/submit-step`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
@@ -409,8 +411,10 @@ export default function ChallengePage() {
 
 			await loadNextRunState(runId);
 		} catch (err) {
+			// ⭐ If upload fails, re-enable UI instead of leaving it on loading
+			setLoading(false);
+
 			alert("Upload failed — please try again.");
-			// stays on upload screen
 		}
 	}
 

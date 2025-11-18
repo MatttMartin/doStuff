@@ -430,7 +430,8 @@ def finish_run(run_id: UUID, db: Session = Depends(get_db)):
 # ------------------------------------------------------------
 # SUPABASE UPLOAD
 # ------------------------------------------------------------
-
+MAX_BYTES = 5 * 1024 * 1024
+ALLOWED = {"image/jpeg", "image/png", "image/webp"}
 
 def _supabase():
     url = os.getenv("SUPABASE_URL")
@@ -440,8 +441,23 @@ def _supabase():
     return create_client(url, key)
 
 
-MAX_BYTES = 5 * 1024 * 1024
-ALLOWED = {"image/jpeg", "image/png", "image/webp"}
+import time
+
+def supabase_upload_with_retry(client, bucket, path, data, headers, retries=3):
+    for attempt in range(retries):
+        try:
+            return client.storage.from_(bucket).upload(
+                path,
+                data,
+                headers
+            )
+        except Exception as exc:
+            print(f"[Upload attempt {attempt+1}] failed:", repr(exc))
+            if attempt < retries - 1:
+                time.sleep(0.5)
+            else:
+                raise
+
 
 
 @app.post("/upload")
@@ -463,19 +479,20 @@ async def upload_proof(file: UploadFile = File(...)):
     bucket = os.getenv("SUPABASE_BUCKET", "proofs")
 
     try:
-        # This is where timeouts / SSL issues happen sometimes
-        sb.storage.from_(bucket).upload(
+            supabase_upload_with_retry(
+            sb,
+            bucket,
             path,
             data,
-            {"content-type": file.content_type},
+            {"content-type": file.content_type}
         )
     except Exception as exc:
-        # Log for your backend console, but don’t crash the route
         print("Supabase upload failed:", repr(exc))
         raise HTTPException(
             status_code=502,
-            detail="Failed to upload proof image. Please try again.",
+            detail="Failed to upload proof image. Please try again."
         )
+
 
     public_url = sb.storage.from_(bucket).get_public_url(path)
     return {"path": path, "url": public_url}
