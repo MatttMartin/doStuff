@@ -93,21 +93,21 @@ export default function SummaryPage() {
 	}
 
 	return (
-		<div className="min-h-screen w-full px-4 py-10 flex flex-col items-center text-neutral-100 font-['VT323']">
-			<h1 className="text-3xl sm:text-4xl md:text-5xl mb-4 tracking-[0.3em] text-center drop-shadow-[0_0_12px_rgba(255,255,255,0.35)]">
+		<div className="min-h-screen w-full px-4 py-4 flex flex-col items-center text-neutral-100 font-['VT323']">
+			<h1 className="text-3xl sm:text-4xl md:text-5xl mb-2 tracking-[0.3em] text-center drop-shadow-[0_0_12px_rgba(255,255,255,0.35)]">
 				RUN SUMMARY
 			</h1>
 
-			<div className="w-full max-w-4xl flex flex-col items-center gap-2 md:gap-3">
+			<div className="w-full max-w-4xl flex flex-col items-center gap-0 md:gap-0">
 				{/* Reusable carousel */}
 				<RunCarousel steps={steps} showDelete onDelete={handleDelete} />
 
-				{/* Post button – tighter spacing, VT323 style */}
+				{/* Post button */}
 				<button
 					type="button"
 					onClick={handlePost}
 					className="
-						mt-2 px-20 sm:px-24 py-3
+						mt-2 px-20 px-24 py-3
 						bg-neutral-900 border border-neutral-700 rounded-xl
 						text-lg sm:text-xl tracking-widest
 						font-['VT323'] text-neutral-100
@@ -118,7 +118,7 @@ export default function SummaryPage() {
 					POST
 				</button>
 
-				{/* Public / Private toggle – simpler + robust layout */}
+				{/* Public / Private toggle */}
 				<div className="mt-1 flex items-center justify-center gap-4 text-xs sm:text-sm font-mono">
 					<button
 						type="button"

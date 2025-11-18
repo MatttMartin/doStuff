@@ -64,8 +64,8 @@ export default function RunCarousel({ steps, showDelete = false, onDelete }: Run
 				<div className="flex">
 					{steps.map((s, idx) => (
 						<div key={idx} className="flex-[0_0_100%] px-1 sm:px-2">
-							<div className="bg-neutral-950/80 border border-neutral-800/90 rounded-3xl px-4 sm:px-5 pt-5 pb-3 shadow-[0_0_18px_rgba(0,0,0,0.8)]">
-								<p className="text-[11px] text-neutral-500 tracking-[0.2em] mb-1">LEVEL {s.level_number ?? "?"}</p>
+							<div className="bg-neutral-950/80 border border-neutral-800/90 rounded-3xl px-4 sm:px-5 pt-3 pb-3 shadow-[0_0_18px_rgba(0,0,0,0.8)]">
+								<p className="text-[11px] text-neutral-500 tracking-[0.2em] mb-">LEVEL {s.level_number ?? "?"}</p>
 
 								<h2 className="text-2xl sm:text-[1.65rem] text-neutral-50 mb-1">{s.title ?? "Untitled challenge"}</h2>
 
