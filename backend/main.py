@@ -508,7 +508,7 @@ def get_run_steps(run_id: UUID, db: Session = Depends(get_db)):
 
     steps = (
         db.query(RunStep)
-        .filter(RunStep.run_id == run_id)
+        .filter(RunStep.run_id == run_id, RunStep.completed == True)
         .order_by(RunStep.id.asc())
         .all()
     )
@@ -528,4 +528,77 @@ def get_run_steps(run_id: UUID, db: Session = Depends(get_db)):
         })
 
     return {"run_id": str(run.id), "steps": out}
+
+
+# ------------------------------------------------------------
+# PUBLIC RUN FEED
+# ------------------------------------------------------------
+from sqlalchemy import desc  # add near your other imports at the top if not already
+
+@app.get("/public-runs")
+def list_public_runs(
+    limit: int = 10,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+):
+    """
+    Returns a page of public runs with their completed steps.
+    Used by the feed page.
+
+    Query:
+      ?limit=10&offset=0
+    """
+    # Join Run + User so we can show username
+    rows = (
+        db.query(Run, User)
+        .join(User, Run.user_id == User.id)
+        .filter(Run.public == True)
+        .order_by(desc(Run.started_at))
+        .limit(limit)
+        .offset(offset)
+        .all()
+    )
+
+    items = []
+    for run, user in rows:
+        # Only completed steps (to match your /runs/{id}/steps change)
+        steps = (
+            db.query(RunStep)
+            .filter(RunStep.run_id == run.id, RunStep.completed == True)
+            .order_by(RunStep.id.asc())
+            .all()
+        )
+
+        step_dicts = []
+        for s in steps:
+            level = db.query(Level).filter(Level.id == s.level_id).first()
+            step_dicts.append(
+                {
+                    "level_number": level.level_number if level else None,
+                    "title": level.title if level else None,
+                    "description": level.description if level else None,
+                    "completed": s.completed,
+                    "skipped_whole": s.skipped_whole,
+                    "proof_url": s.proof_url,
+                    "completed_at": s.completed_at.isoformat() if s.completed_at else None,
+                }
+            )
+
+        items.append(
+            {
+                "run_id": str(run.id),
+                "user_id": str(run.user_id),
+                "username": user.username,
+                "caption": run.caption,
+                "public": run.public,
+                "steps": step_dicts,
+            }
+        )
+
+    has_more = len(items) == limit
+    return {
+        "items": items,
+        "next_offset": offset + len(items),
+        "has_more": has_more,
+    }
 
