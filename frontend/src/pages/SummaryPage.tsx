@@ -68,28 +68,6 @@ export default function SummaryPage() {
 	}
 
 	// -----------------------------
-	// Render helpers
-	// -----------------------------
-	function renderDeleteIcon() {
-		return (
-			<button
-				type="button"
-				onClick={handleDelete}
-				className="flex items-center justify-center p-1 text-red-500 hover:text-red-300 transition-transform duration-150 hover:scale-110"
-				aria-label="Delete run"
-			>
-				<svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.2">
-					<rect x="4" y="5" width="8" height="9" rx="1" />
-					<path d="M3 5h10" />
-					<path d="M6 3h4l1 2H5z" />
-					<path d="M7 7v5" />
-					<path d="M9 7v5" />
-				</svg>
-			</button>
-		);
-	}
-
-	// -----------------------------
 	// Render
 	// -----------------------------
 	if (loading) {
