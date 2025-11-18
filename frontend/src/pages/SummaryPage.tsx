@@ -104,16 +104,16 @@ export default function SummaryPage() {
 	// -----------------------------
 	// Render helpers
 	// -----------------------------
-	function formatStatus(step: StepItem) {
-		if (!step.completed && !step.skipped_whole) return "Timed out / Failed";
-		if (step.skipped_whole) return "Skipped";
-		return "Completed";
-	}
+	// function formatStatus(step: StepItem) {
+	// 	if (!step.completed && !step.skipped_whole) return "Timed out / Failed";
+	// 	if (step.skipped_whole) return "Skipped";
+	// 	return "Completed";
+	// }
 
-	function formatDate(iso: string | null) {
-		if (!iso) return "";
-		return iso.replace("T", " ").slice(0, 16);
-	}
+	// function formatDate(iso: string | null) {
+	// 	if (!iso) return "";
+	// 	return iso.replace("T", " ").slice(0, 16);
+	// }
 
 	// -----------------------------
 	// Render
