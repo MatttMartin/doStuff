@@ -209,7 +209,6 @@ export default function ChallengePage() {
 		// No skips left → run ends
 		if (currentSkipsUsed >= MAX_SKIPS) {
 			await fetch(`${API_BASE}/runs/${rid}/finish`, { method: "POST" });
-			alert("Time’s up. Run ended.");
 			clearProofPreview();
 			setChallenge(null);
 
@@ -245,7 +244,6 @@ export default function ChallengePage() {
 		setSkipsUsed(run.skips_used ?? 0);
 
 		if (run.finished_at) {
-			alert("Run finished!");
 			clearProofPreview();
 			setChallenge(null);
 			finalizeRun();
@@ -328,7 +326,6 @@ export default function ChallengePage() {
 		if (!runId) return;
 		setLoading(true);
 		await fetch(`${API_BASE}/runs/${runId}/finish`, { method: "POST" });
-		alert("Run ended.");
 		clearProofPreview();
 		finalizeRun();
 		setChallenge(null);
@@ -355,7 +352,6 @@ export default function ChallengePage() {
 		if (!runId || !challenge) return;
 
 		if (skipsUsed >= MAX_SKIPS) {
-			alert("No skips left.");
 			return;
 		}
 
