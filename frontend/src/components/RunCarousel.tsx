@@ -34,6 +34,8 @@ function isVideoUrl(url: string | null): boolean {
 
 export default function RunCarousel({ steps, showDelete = false, onDelete, autoPlayActive = true }: RunCarouselProps) {
 	const [selectedIndex, setSelectedIndex] = useState(0);
+	const [isPlayingMap, setIsPlayingMap] = useState<Record<number, boolean>>({});
+	const [controlsVisibleMap, setControlsVisibleMap] = useState<Record<number, boolean>>({});
 
 	const [emblaRef, emblaApi] = useEmblaCarousel({
 		loop: false,
@@ -69,6 +71,22 @@ export default function RunCarousel({ steps, showDelete = false, onDelete, autoP
 
 	// ----- VIDEO AUTOPLAY / PAUSE LOGIC -----
 	const videoRefs = useRef<Array<HTMLVideoElement | null>>([]);
+	const requestVideoPlay = (idx: number) => {
+		const video = videoRefs.current[idx];
+		if (!video) return;
+		setControlsVisibleMap((prev) => ({ ...prev, [idx]: true }));
+		video.play().catch(() => {
+			// Some mobile browsers still block autoplay; rely on overlay tap retry.
+		});
+	};
+
+	const handleVideoPlayState = (idx: number, playing: boolean) => {
+		setIsPlayingMap((prev) => ({ ...prev, [idx]: playing }));
+		if (!playing && idx === selectedIndex && autoPlayActive) {
+			// Ensure overlay reappears when feed pauses videos off-screen.
+			setControlsVisibleMap((prev) => ({ ...prev, [idx]: prev[idx] ?? false }));
+		}
+	};
 
 	// Whenever the selected slide OR autoplay-allowed flag changes,
 	// pause all videos and only play the one on the active slide (if any).
@@ -100,44 +118,86 @@ export default function RunCarousel({ steps, showDelete = false, onDelete, autoP
 			{/* Embla viewport */}
 			<div className="overflow-hidden" ref={emblaRef}>
 				<div className="flex">
-					{steps.map((s, idx) => (
-						<div key={idx} className="flex-[0_0_100%] px-1 sm:px-2">
-							<div className="bg-neutral-950/80 border border-neutral-800/90 rounded-3xl px-4 sm:px-5 pt-3 pb-3 shadow-[0_0_18px_rgba(0,0,0,0.8)]">
-								<p className="text-[11px] text-neutral-500 tracking-[0.2em] mb-">LEVEL {s.level_number ?? "?"}</p>
+					{steps.map((s, idx) => {
+						const proofIsVideo = isVideoUrl(s.proof_url);
+						const playingNow = !!isPlayingMap[idx];
+						const controlsVisible = !!controlsVisibleMap[idx];
 
-								<h2 className="text-2xl sm:text-[1.65rem] text-neutral-50 mb-1">{s.title ?? "Untitled challenge"}</h2>
+						return (
+							<div key={idx} className="flex-[0_0_100%] px-1 sm:px-2">
+								<div className="bg-neutral-950/80 border border-neutral-800/90 rounded-3xl px-4 sm:px-5 pt-3 pb-3 shadow-[0_0_18px_rgba(0,0,0,0.8)]">
+									<p className="text-[11px] text-neutral-500 tracking-[0.2em] mb-">LEVEL {s.level_number ?? "?"}</p>
 
-								{/* Reserve two lines worth of room for description */}
-								<p className="text-[13px] sm:text-sm text-neutral-400 font-mono mb-2 min-h-[2.5rem]">
-									{s.description ?? ""}
-								</p>
+									<h2 className="text-2xl sm:text-[1.65rem] text-neutral-50 mb-1">{s.title ?? "Untitled challenge"}</h2>
 
-								<div className="mt-2 mb-2 rounded-2xl border border-neutral-800 bg-neutral-900/70 overflow-hidden h-60 md:h-64 flex items-center justify-center">
-									{s.proof_url ? (
-										isVideoUrl(s.proof_url) ? (
-											<video
-												ref={(el) => {
-													videoRefs.current[idx] = el;
-												}}
-												src={s.proof_url}
-												className="w-full h-full object-contain"
-												controls
-												playsInline
-												muted
-											/>
+									{/* Reserve two lines worth of room for description */}
+									<p className="text-[13px] sm:text-sm text-neutral-400 font-mono mb-2 min-h-[2.5rem]">
+										{s.description ?? ""}
+									</p>
+
+									<div className="relative mt-2 mb-2 rounded-2xl border border-neutral-800 bg-neutral-900/70 overflow-hidden h-60 md:h-64 flex items-center justify-center">
+										{s.proof_url ? (
+											proofIsVideo ? (
+												<video
+													ref={(el) => {
+														videoRefs.current[idx] = el;
+													}}
+													src={s.proof_url}
+													className="w-full h-full object-contain"
+													autoPlay={autoPlayActive && idx === selectedIndex}
+													playsInline
+													muted
+													preload="metadata"
+													controls={controlsVisible}
+													controlsList="nodownload noplaybackrate nofullscreen"
+													disablePictureInPicture
+													onPlay={() => handleVideoPlayState(idx, true)}
+													onPause={() => handleVideoPlayState(idx, false)}
+													onClick={() => {
+														if (!controlsVisible) {
+															setControlsVisibleMap((prev) => ({ ...prev, [idx]: true }));
+														}
+													}}
+												/>
+											) : (
+												<img src={s.proof_url} className="w-full h-full object-contain" />
+											)
 										) : (
-											<img src={s.proof_url} className="w-full h-full object-contain" />
-										)
-									) : (
-										<div className="text-neutral-600 font-mono text-xs">no proof</div>
-									)}
-								</div>
+											<div className="text-neutral-600 font-mono text-xs">no proof</div>
+										)}
 
-								<p className="mt-1 text-[11px] text-neutral-400 font-mono">{formatStatus(s)}</p>
-								<p className="mt-[2px] text-[11px] text-neutral-500 font-mono">{formatDate(s.completed_at)}</p>
+									{proofIsVideo && !playingNow && (
+										<button
+											type="button"
+											onClick={() => requestVideoPlay(idx)}
+											className="absolute inset-0 flex items-center justify-center bg-black/25 hover:bg-black/35 transition-colors"
+											aria-label="Play proof video"
+										>
+											<svg viewBox="0 0 36 36" className="w-10 h-10 drop-shadow-[0_0_8px_rgba(0,0,0,0.7)]" fill="rgba(255,255,255,0.85)">
+												<path d="M12 9l16 9-16 9z" />
+											</svg>
+										</button>
+									)}
+
+										{proofIsVideo && playingNow && (
+											<button
+												type="button"
+												onClick={() => setControlsVisibleMap((prev) => ({ ...prev, [idx]: !prev[idx] }))}
+												className="absolute top-2 right-2 rounded-full border border-neutral-700/80 bg-black/60 text-[10px] px-3 py-1 tracking-[0.2em] text-neutral-200 hover:border-neutral-200 transition-colors"
+												aria-pressed={controlsVisible}
+												aria-label={controlsVisible ? "Hide video controls" : "Show video controls"}
+											>
+												{controlsVisible ? "HIDE" : "CTRL"}
+											</button>
+										)}
+									</div>
+
+									<p className="mt-1 text-[11px] text-neutral-400 font-mono">{formatStatus(s)}</p>
+									<p className="mt-[2px] text-[11px] text-neutral-500 font-mono">{formatDate(s.completed_at)}</p>
+								</div>
 							</div>
-						</div>
-					))}
+						);
+					})}
 				</div>
 			</div>
 

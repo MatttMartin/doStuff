@@ -43,28 +43,60 @@ export default function SummaryPage() {
 	}, []);
 
 	// -----------------------------
-	// Actions
+	// Backend actions
 	// -----------------------------
-	function handleVisibilityChange(nextPublic: boolean) {
-		setIsPublic(nextPublic);
-		// TODO: later add backend PATCH /runs/{id} to persist Run.public
+	async function updateVisibility(publicValue: boolean) {
+		if (!runId) return;
+
+		try {
+			await fetch(`${API_BASE}/runs/${runId}`, {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ public: publicValue }),
+			});
+		} catch (err) {
+			console.error("Failed to update public/private:", err);
+		}
 	}
 
-	function handlePost() {
+	async function deleteRun() {
 		if (!runId) return;
-		alert(
-			`Pretend this run has been ${isPublic ? "posted publicly" : "saved as private"}. (Backend hook goes here later.)`
-		);
-	}
 
-	function handleDelete() {
-		if (!runId) return;
-		const ok = confirm("Delete this run from this device?");
-		if (!ok) return;
+		try {
+			await fetch(`${API_BASE}/runs/${runId}`, { method: "DELETE" });
+		} catch (err) {
+			console.error("Failed to delete run:", err);
+		}
 
 		localStorage.removeItem("last_run_id");
 		localStorage.removeItem("current_run_id");
-		window.location.href = "/";
+
+		window.location.href = "/feed";
+	}
+
+	// -----------------------------
+	// UI handlers
+	// -----------------------------
+	function handleVisibilityChange(nextValue: boolean) {
+		setIsPublic(nextValue);
+		updateVisibility(nextValue);
+	}
+
+	async function handlePost() {
+		if (!runId) return;
+
+		await updateVisibility(isPublic);
+
+		// optional: call finish endpoint again (does nothing if already finished)
+		await fetch(`${API_BASE}/runs/${runId}/finish`, { method: "POST" });
+
+		window.location.href = "/feed";
+	}
+
+	function handleDelete() {
+		const ok = confirm("Delete this run permanently?");
+		if (!ok) return;
+		deleteRun();
 	}
 
 	// -----------------------------
@@ -99,26 +131,24 @@ export default function SummaryPage() {
 			</h1>
 
 			<div className="w-full max-w-4xl flex flex-col items-center gap-0 md:gap-0">
-				{/* Reusable carousel */}
 				<RunCarousel steps={steps} showDelete onDelete={handleDelete} />
 
-				{/* Post button */}
 				<button
 					type="button"
 					onClick={handlePost}
 					className="
-						mt-2 px-20 px-24 py-3
-						bg-neutral-900 border border-neutral-700 rounded-xl
-						text-lg sm:text-xl tracking-widest
-						font-['VT323'] text-neutral-100
-						hover:border-cyan-400 hover:shadow-[0_0_18px_rgba(0,255,255,0.35)]
-						transition-all duration-200
-					"
+            mt-2 px-20 py-3
+            bg-neutral-900 border border-neutral-700 rounded-xl
+            text-lg sm:text-xl tracking-widest
+            font-['VT323'] text-neutral-100
+            hover:border-cyan-400 hover:shadow-[0_0_18px_rgba(0,255,255,0.35)]
+            transition-all duration-200
+          "
 				>
 					POST
 				</button>
 
-				{/* Public / Private toggle */}
+				{/* Public/Private toggle */}
 				<div className="mt-1 flex items-center justify-center gap-4 text-xs sm:text-sm font-mono">
 					<button
 						type="button"
@@ -133,7 +163,6 @@ export default function SummaryPage() {
 						private
 					</button>
 
-					{/* Flex-based thumb: no translateX hacks, works on all screen sizes */}
 					<button
 						type="button"
 						onClick={() => handleVisibilityChange(!isPublic)}

@@ -292,6 +292,7 @@ export default function ChallengePage() {
 		const file = e.target.files?.[0];
 		if (!file) return;
 
+		setFile(file);
 		setPreview(URL.createObjectURL(file));
 		setPreviewType(file.type); // <-- NEW
 	};
@@ -419,10 +420,10 @@ export default function ChallengePage() {
 		}
 	}
 
-	function isVideo(url: string) {
-		console.log(url);
-		return /\.(mp4|webm|mov|ogg)(\?|$)/i.test(url);
-	}
+	// function isVideo(url: string) {
+	// 	console.log(url);
+	// 	return /\.(mp4|webm|mov|ogg)(\?|$)/i.test(url);
+	// }
 
 	function finalizeRun() {
 		if (!runId) return;

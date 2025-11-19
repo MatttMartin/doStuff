@@ -5,7 +5,7 @@ from datetime import datetime
 import secrets
 import os
 
-from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Body
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -16,6 +16,8 @@ from models import Level, Run, RunStep, User
 from supabase import create_client
 import httpx
 import storage3
+
+
 
 # Create a patched HTTP client
 _patched_http_client = httpx.Client(http2=False, timeout=30.0)
@@ -404,6 +406,31 @@ def set_proof_state(run_id: UUID, payload: ProofState, db: Session = Depends(get
     db.commit()
 
     return {"ok": True}
+
+
+@app.patch("/runs/{run_id}")
+def update_run(run_id: UUID, payload: dict = Body(...), db: Session = Depends(get_db)):
+    run = db.query(Run).filter(Run.id == run_id).first()
+    if not run:
+        raise HTTPException(404, "Run not found")
+
+    if "public" in payload:
+        run.public = bool(payload["public"])
+
+    db.commit()
+    return {"ok": True}
+
+@app.delete("/runs/{run_id}")
+def delete_run(run_id: UUID, db: Session = Depends(get_db)):
+    run = db.query(Run).filter(Run.id == run_id).first()
+    if not run:
+        raise HTTPException(404, "Run not found")
+
+    db.delete(run)
+    db.commit()
+    return {"deleted": True}
+
+
 
 
 # ------------------------------------------------------------
