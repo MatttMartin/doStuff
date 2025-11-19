@@ -439,6 +439,7 @@ ALLOWED = {
     "image/webp",
     "video/mp4",
     "video/webm",
+    "video/quicktime",
 }
 
 def _supabase():
@@ -487,6 +488,7 @@ async def upload_proof(file: UploadFile = File(...)):
         "image/webp": "webp",
         "video/mp4": "mp4",
         "video/webm": "webm",
+        "video/quicktime": "mov",
     }
     ext = ext_map[file.content_type]
     ymd = datetime.utcnow().strftime("%Y/%m")

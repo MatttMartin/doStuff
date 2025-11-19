@@ -60,6 +60,8 @@ export default function ChallengePage() {
 	const [preview, setPreview] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
 
+	const [previewType, setPreviewType] = useState<string | null>(null);
+
 	// --------------------------------------------
 	// Helpers
 	// --------------------------------------------
@@ -286,16 +288,13 @@ export default function ChallengePage() {
 	// --------------------------------------------
 	// File handling
 	// --------------------------------------------
-	function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-		const f = e.target.files?.[0];
-		if (!f) return;
-		setFile(f);
+	const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (!file) return;
 
-		if (preview) {
-			URL.revokeObjectURL(preview);
-		}
-		setPreview(URL.createObjectURL(f));
-	}
+		setPreview(URL.createObjectURL(file));
+		setPreviewType(file.type); // <-- NEW
+	};
 
 	async function uploadProof() {
 		if (!file) return null;
@@ -420,6 +419,11 @@ export default function ChallengePage() {
 		}
 	}
 
+	function isVideo(url: string) {
+		console.log(url);
+		return /\.(mp4|webm|mov|ogg)(\?|$)/i.test(url);
+	}
+
 	function finalizeRun() {
 		if (!runId) return;
 		localStorage.setItem("last_run_id", runId); // <-- NEW
@@ -505,9 +509,14 @@ export default function ChallengePage() {
 						<p className="text-neutral-400 text-sm font-mono">Upload proof (optional)</p>
 
 						<label className="flex flex-col items-center justify-center w-full h-56 border-2 border-dashed border-neutral-600 rounded-xl cursor-pointer hover:border-blue-400 bg-neutral-900/40 transition">
-							<input type="file" className="hidden" onChange={handleFile} />
+							<input type="file" accept="image/*,video/*" className="hidden" onChange={handleFile} />
+
 							{preview ? (
-								<img src={preview} className="h-full object-contain" />
+								previewType?.startsWith("video/") ? (
+									<video src={preview} className="h-full object-contain" controls muted playsInline />
+								) : (
+									<img src={preview} className="h-full object-contain" />
+								)
 							) : (
 								<span className="text-neutral-500 text-xl font-mono">Tap to upload proof</span>
 							)}

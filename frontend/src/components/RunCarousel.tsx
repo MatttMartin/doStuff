@@ -1,5 +1,5 @@
 // src/components/RunCarousel.tsx
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 
 export interface StepItem {
@@ -18,15 +18,21 @@ interface RunCarouselProps {
 	showDelete?: boolean;
 	/** called when trash icon is clicked */
 	onDelete?: () => void;
+	/**
+	 * If false, videos will NOT autoplay, even when this carousel slide is active.
+	 * FeedPage will use this to only autoplay on the card that's actually visible.
+	 * Defaults to true (safe for SummaryPage, etc.).
+	 */
+	autoPlayActive?: boolean;
 }
 
-// Simple helper: guess if a URL is a video by its extension
+// Guess if a URL looks like a video (matches backend extensions)
 function isVideoUrl(url: string | null): boolean {
 	if (!url) return false;
 	return /\.(mp4|webm|mov|ogg)(\?|$)/i.test(url);
 }
 
-export default function RunCarousel({ steps, showDelete = false, onDelete }: RunCarouselProps) {
+export default function RunCarousel({ steps, showDelete = false, onDelete, autoPlayActive = true }: RunCarouselProps) {
 	const [selectedIndex, setSelectedIndex] = useState(0);
 
 	const [emblaRef, emblaApi] = useEmblaCarousel({
@@ -61,6 +67,32 @@ export default function RunCarousel({ steps, showDelete = false, onDelete }: Run
 		return iso.replace("T", " ").slice(0, 16);
 	}
 
+	// ----- VIDEO AUTOPLAY / PAUSE LOGIC -----
+	const videoRefs = useRef<Array<HTMLVideoElement | null>>([]);
+
+	// Whenever the selected slide OR autoplay-allowed flag changes,
+	// pause all videos and only play the one on the active slide (if any).
+	useEffect(() => {
+		// Pause everything if autoplay is not allowed for this carousel
+		if (!autoPlayActive) {
+			videoRefs.current.forEach((v) => v && v.pause());
+			return;
+		}
+
+		videoRefs.current.forEach((v, idx) => {
+			if (!v) return;
+			if (idx === selectedIndex) {
+				// Try to play the active slide; some browsers may block
+				// autoplay with sound, so we keep it muted by default.
+				v.play().catch(() => {
+					// ignore autoplay errors
+				});
+			} else {
+				v.pause();
+			}
+		});
+	}, [selectedIndex, autoPlayActive]);
+
 	if (!steps.length) return null;
 
 	return (
@@ -83,7 +115,16 @@ export default function RunCarousel({ steps, showDelete = false, onDelete }: Run
 								<div className="mt-2 mb-2 rounded-2xl border border-neutral-800 bg-neutral-900/70 overflow-hidden h-60 md:h-64 flex items-center justify-center">
 									{s.proof_url ? (
 										isVideoUrl(s.proof_url) ? (
-											<video src={s.proof_url} className="w-full h-full object-contain" controls playsInline />
+											<video
+												ref={(el) => {
+													videoRefs.current[idx] = el;
+												}}
+												src={s.proof_url}
+												className="w-full h-full object-contain"
+												controls
+												playsInline
+												muted
+											/>
 										) : (
 											<img src={s.proof_url} className="w-full h-full object-contain" />
 										)

@@ -171,7 +171,7 @@ export default function FeedPage() {
 						</div>
 
 						{/* Shared carousel component (no delete in feed) */}
-						<RunCarousel steps={run.steps} />
+						<RunCarousel steps={run.steps} autoPlayActive={index === visibleIndex} />
 
 						{/* Caption */}
 						{run.caption && (
