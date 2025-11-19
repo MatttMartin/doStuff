@@ -1,5 +1,5 @@
 # backend/main.py
-from typing import Optional
+from typing import Optional, Set
 from uuid import UUID, uuid4
 from datetime import datetime
 import secrets
@@ -9,9 +9,10 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Body
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from sqlalchemy import desc, func
 
 from db import SessionLocal, Base, engine
-from models import Level, Run, RunStep, User
+from models import Level, Run, RunStep, User, Like, Comment
 
 from supabase import create_client
 import httpx
@@ -110,11 +111,7 @@ def create_run(payload: RunCreate, db: Session = Depends(get_db)):
     (server remembers which challenge you're currently on).
     """
     # Ensure user exists
-    user = db.query(User).filter(User.id == payload.user_id).first()
-    if not user:
-        user = User(id=payload.user_id, username=str(payload.user_id))
-        db.add(user)
-        db.commit()
+    user = ensure_user(db, payload.user_id)
 
     # Find the first level_number (e.g. 1)
     first_level_number_row = (
@@ -164,6 +161,15 @@ def create_run(payload: RunCreate, db: Session = Depends(get_db)):
         "started_at": run.started_at.isoformat() if run.started_at else None,
         "pending_started_at": run.pending_started_at.isoformat() if run.pending_started_at else None,
     }
+
+
+def ensure_user(db: Session, user_id: UUID) -> User:
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        user = User(id=user_id, username="Anonymous")
+        db.add(user)
+        db.commit()
+    return user
 
 
 # ------------------------------------------------------------
@@ -242,9 +248,12 @@ def get_run(run_id: UUID, db: Session = Depends(get_db)):
     if run.pending_level_id:
         level = db.query(Level).filter(Level.id == run.pending_level_id).first()
 
+    user = db.query(User).filter(User.id == run.user_id).first()
+
     return {
         "id": str(run.id),
         "user_id": str(run.user_id),
+        "username": user.username if user else None,
         "caption": run.caption,
         "started_at": run.started_at.isoformat() if run.started_at else None,
         "finished_at": run.finished_at.isoformat() if run.finished_at else None,
@@ -456,6 +465,76 @@ def set_cover_step(run_id: UUID, payload: CoverStepPayload, db: Session = Depend
 
     return {"ok": True, "cover_step_id": step.id}
 
+
+class UserUpdate(BaseModel):
+    username: str
+
+
+class LikePayload(BaseModel):
+    user_id: UUID
+
+
+@app.patch("/users/{user_id}")
+def update_user(user_id: UUID, payload: UserUpdate, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(404, "User not found")
+
+    username = payload.username.strip()
+    if not username:
+        username = "Anonymous"
+
+    user.username = username
+    db.commit()
+
+    return {"ok": True, "username": user.username}
+
+
+def get_like_count(db: Session, run_id: UUID) -> int:
+    count = db.query(func.count(Like.id)).filter(Like.run_id == run_id).scalar()
+    return int(count or 0)
+
+
+@app.post("/runs/{run_id}/like")
+def like_run(run_id: UUID, payload: LikePayload, db: Session = Depends(get_db)):
+    run = db.query(Run).filter(Run.id == run_id).first()
+    if not run:
+        raise HTTPException(404, "Run not found")
+
+    ensure_user(db, payload.user_id)
+
+    existing = (
+        db.query(Like)
+        .filter(Like.run_id == run_id, Like.user_id == payload.user_id)
+        .first()
+    )
+    if not existing:
+        like = Like(run_id=run_id, user_id=payload.user_id)
+        db.add(like)
+        db.commit()
+
+    like_count = get_like_count(db, run_id)
+    return {"liked": True, "like_count": like_count}
+
+
+@app.delete("/runs/{run_id}/like")
+def unlike_run(run_id: UUID, payload: LikePayload, db: Session = Depends(get_db)):
+    run = db.query(Run).filter(Run.id == run_id).first()
+    if not run:
+        raise HTTPException(404, "Run not found")
+
+    existing = (
+        db.query(Like)
+        .filter(Like.run_id == run_id, Like.user_id == payload.user_id)
+        .first()
+    )
+    if existing:
+        db.delete(existing)
+        db.commit()
+
+    like_count = get_like_count(db, run_id)
+    return {"liked": False, "like_count": like_count}
+
 @app.delete("/runs/{run_id}")
 def delete_run(run_id: UUID, db: Session = Depends(get_db)):
     run = db.query(Run).filter(Run.id == run_id).first()
@@ -618,12 +697,11 @@ def get_run_steps(run_id: UUID, db: Session = Depends(get_db)):
 # ------------------------------------------------------------
 # PUBLIC RUN FEED
 # ------------------------------------------------------------
-from sqlalchemy import desc  # add near your other imports at the top if not already
-
 @app.get("/public-runs")
 def list_public_runs(
     limit: int = 10,
     offset: int = 0,
+    viewer_id: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     """
@@ -634,9 +712,23 @@ def list_public_runs(
       ?limit=10&offset=0
     """
     # Join Run + User so we can show username
+    like_counts_sub = (
+        db.query(
+            Like.run_id.label("run_id"),
+            func.count(Like.id).label("like_count"),
+        )
+        .group_by(Like.run_id)
+        .subquery()
+    )
+
     rows = (
-        db.query(Run, User)
+        db.query(
+            Run,
+            User,
+            func.coalesce(like_counts_sub.c.like_count, 0).label("like_count"),
+        )
         .join(User, Run.user_id == User.id)
+        .outerjoin(like_counts_sub, Run.id == like_counts_sub.c.run_id)
         .filter(Run.public == True)
         .order_by(desc(Run.started_at))
         .limit(limit)
@@ -644,8 +736,22 @@ def list_public_runs(
         .all()
     )
 
+    viewer_uuid: Optional[UUID] = None
+    if viewer_id:
+        try:
+            viewer_uuid = UUID(viewer_id)
+        except ValueError:
+            viewer_uuid = None
+
+    viewer_liked_ids: Set[str] = set()
+    if viewer_uuid:
+        viewer_liked_ids = {
+            str(row.run_id)
+            for row in db.query(Like.run_id).filter(Like.user_id == viewer_uuid).all()
+        }
+
     items = []
-    for run, user in rows:
+    for run, user, like_count in rows:
         # Only completed steps (to match your /runs/{id}/steps change)
         steps = (
             db.query(RunStep)
@@ -671,6 +777,7 @@ def list_public_runs(
                 }
             )
 
+        like_count_int = int(like_count or 0)
         items.append(
             {
                 "run_id": str(run.id),
@@ -679,6 +786,8 @@ def list_public_runs(
                 "caption": run.caption,
                 "public": run.public,
                 "cover_step_id": run.cover_step_id,
+                "like_count": like_count_int,
+                "liked_by_viewer": str(run.id) in viewer_liked_ids,
                 "steps": step_dicts,
             }
         )

@@ -230,20 +230,35 @@ useEffect(() => {
 						const proofIsVideo = isVideoUrl(s.proof_url);
 						const isMuted = muteMap[idx] ?? true;
 						const indicatorState = proofIsVideo ? indicatorMap[idx] ?? (isMuted ? "muted" : null) : null;
+						const completedAtLabel = formatDate(s.completed_at);
 
 						return (
 							<div key={`slide-${s.id ?? idx}`} className="flex-[0_0_100%] px-1 sm:px-2">
-								<div className="bg-neutral-950/80 border border-neutral-800/90 rounded-3xl px-4 sm:px-5 pt-3 pb-3 shadow-[0_0_18px_rgba(0,0,0,0.8)]">
-									<p className="text-[11px] text-neutral-500 tracking-[0.2em] mb-">LEVEL {s.level_number ?? "?"}</p>
+								<div className="bg-neutral-950/80 border border-neutral-800/90 rounded-3xl px-4 sm:px-5 pt-2.5 pb-2 shadow-[0_0_18px_rgba(0,0,0,0.8)]">
+									<div className="min-h-[4.25rem] flex flex-col gap-1 pb-1.5">
+										<div className="flex flex-wrap items-center justify-between gap-y-0.5 text-[10px] uppercase tracking-[0.25em] text-neutral-500">
+											<span>LEVEL {s.level_number ?? "?"}</span>
+											<div className="flex flex-wrap items-center gap-2 text-[10px] font-mono tracking-[0.08em] text-neutral-400">
+												<span className="text-neutral-200">{formatStatus(s).toUpperCase()}</span>
+												{completedAtLabel && (
+													<span className="flex items-center gap-1 text-neutral-500 tracking-normal">
+														<span className="text-neutral-700">•</span>
+														<span>{completedAtLabel}</span>
+													</span>
+												)}
+											</div>
+										</div>
 
-									<h2 className="text-2xl sm:text-[1.65rem] text-neutral-50 mb-1">{s.title ?? "Untitled challenge"}</h2>
+										<h2 className="text-xl sm:text-[1.5rem] text-neutral-50 leading-snug">
+											{s.title ?? "Untitled challenge"}
+										</h2>
 
-									{/* Reserve two lines worth of room for description */}
-									<p className="text-[13px] sm:text-sm text-neutral-400 font-mono mb-2 min-h-[2.5rem]">
-										{s.description ?? ""}
-									</p>
+										<p className="text-[12px] sm:text-sm text-neutral-400 font-mono leading-snug min-h-[1.8rem]">
+											{s.description ?? ""}
+										</p>
+									</div>
 
-									<div className="relative mt-2 mb-2 rounded-2xl border border-neutral-800 bg-neutral-900/70 overflow-hidden h-60 md:h-64 flex items-center justify-center">
+									<div className="relative mt-1 mb-1 rounded-2xl border border-neutral-800 bg-neutral-900/70 overflow-hidden h-[28rem] md:h-[32rem] flex items-center justify-center">
 										{s.proof_url ? (
 											proofIsVideo ? (
 												<video
@@ -313,8 +328,6 @@ useEffect(() => {
 										)}
 									</div>
 
-									<p className="mt-1 text-[11px] text-neutral-400 font-mono">{formatStatus(s)}</p>
-									<p className="mt-[2px] text-[11px] text-neutral-500 font-mono">{formatDate(s.completed_at)}</p>
 								</div>
 							</div>
 						);

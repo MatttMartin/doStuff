@@ -11,6 +11,8 @@ export default function SummaryPage() {
 	const [runId, setRunId] = useState<string | null>(null);
 	const [isPublic, setIsPublic] = useState<boolean>(true);
 	const [caption, setCaption] = useState<string>("");
+	const [nickname, setNickname] = useState<string>("");
+	const [userId, setUserId] = useState<string | null>(null);
 	const defaultCoverAttempted = useRef(false);
 
 	useEffect(() => {
@@ -40,6 +42,8 @@ export default function SummaryPage() {
 				const runJson = await runRes.json();
 				setIsPublic(!!runJson.public);
 				setCaption(runJson.caption ?? "");
+				setNickname(runJson.username ?? "Anonymous");
+				setUserId(runJson.user_id ?? null);
 			} catch (err) {
 				console.error("Failed to load run summary", err);
 			}
@@ -52,19 +56,19 @@ export default function SummaryPage() {
 	// -----------------------------
 	// Backend actions
 	// -----------------------------
-async function updateVisibility(publicValue: boolean) {
-	if (!runId) return;
+	async function updateRun(payload: Record<string, unknown>) {
+		if (!runId) return;
 
-	try {
-		await fetch(`${API_BASE}/runs/${runId}`, {
-			method: "PATCH",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ public: publicValue }),
-		});
-	} catch (err) {
-		console.error("Failed to update public/private:", err);
+		try {
+			await fetch(`${API_BASE}/runs/${runId}`, {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(payload),
+			});
+		} catch (err) {
+			console.error("Failed to update run metadata:", err);
+		}
 	}
-}
 
 	async function deleteRun() {
 		if (!runId) return;
@@ -113,22 +117,25 @@ async function handleSetCover(stepId: number) {
 	// -----------------------------
 	function handleVisibilityChange(nextValue: boolean) {
 		setIsPublic(nextValue);
-		updateVisibility(nextValue);
+		updateRun({ public: nextValue });
 	}
 
 async function handlePost() {
-	if (!runId) return;
+	if (!runId || !userId) return;
 
-	await updateVisibility(isPublic);
+	await updateRun({ public: isPublic, caption });
+
+	const trimmedNickname = nickname.trim() || "Anonymous";
+	setNickname(trimmedNickname);
 
 	try {
-		await fetch(`${API_BASE}/runs/${runId}`, {
+		await fetch(`${API_BASE}/users/${userId}`, {
 			method: "PATCH",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ caption }),
+			body: JSON.stringify({ username: trimmedNickname }),
 		});
 	} catch (err) {
-		console.error("Failed to save caption:", err);
+		console.error("Failed to update username:", err);
 	}
 
 		// optional: call finish endpoint again (does nothing if already finished)
@@ -191,17 +198,34 @@ async function handlePost() {
 				RUN SUMMARY
 			</h1>
 
-			<div className="w-full max-w-4xl flex flex-col items-center gap-0 md:gap-0">
-				<RunCarousel
-					steps={steps}
-					showDelete
-					onDelete={handleDelete}
-					initialIndex={initialCarouselIndex}
-					coverStepId={coverStepId}
-					onSetCover={handleSetCover}
-				/>
+			<div className="w-full max-w-2xl flex flex-col items-center gap-6">
+				<div className="w-full">
+					<RunCarousel
+						steps={steps}
+						showDelete
+						onDelete={handleDelete}
+						initialIndex={initialCarouselIndex}
+						coverStepId={coverStepId}
+						onSetCover={handleSetCover}
+					/>
+				</div>
 
-				<div className="w-full max-w-lg mt-6">
+				<div className="w-full">
+					<label htmlFor="nickname" className="block text-sm uppercase tracking-[0.3em] text-neutral-500 mb-2">
+						Nickname
+					</label>
+					<input
+						id="nickname"
+						type="text"
+						value={nickname}
+						onChange={(e) => setNickname(e.target.value)}
+						placeholder="Anonymous"
+						className="w-full rounded-2xl bg-black/60 border border-neutral-800 px-4 py-3 text-lg text-neutral-100 focus:outline-none focus:border-cyan-300 focus:ring-1 focus:ring-cyan-400 transition-all"
+					/>
+					<p className="mt-1 text-xs font-mono text-neutral-500">Leave blank to post as Anonymous.</p>
+				</div>
+
+				<div className="w-full">
 					<label htmlFor="caption" className="block text-sm uppercase tracking-[0.3em] text-neutral-500 mb-2">
 						Caption
 					</label>
@@ -210,7 +234,7 @@ async function handlePost() {
 						value={caption}
 						onChange={(e) => setCaption(e.target.value)}
 						placeholder="Tell everyone about your run..."
-						className="w-full min-h-[90px] rounded-2xl bg-black/60 border border-neutral-800 px-4 py-3 text-lg text-neutral-100 focus:outline-none focus:border-cyan-300 focus:ring-1 focus:ring-cyan-400 transition-all resize-none"
+						className="w-full min-h-[110px] rounded-2xl bg-black/60 border border-neutral-800 px-4 py-3 text-lg text-neutral-100 focus:outline-none focus:border-cyan-300 focus:ring-1 focus:ring-cyan-400 transition-all resize-none"
 					/>
 				</div>
 

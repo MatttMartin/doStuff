@@ -12,8 +12,13 @@ interface RunFeedItem {
 	caption: string | null;
 	public: boolean;
 	cover_step_id?: number | null;
+	like_count: number;
+	liked_by_viewer: boolean;
 	steps: StepItem[];
 }
+
+const CAROUSEL_WIDTH_CLASS = "w-full max-w-md sm:max-w-lg md:max-w-xl mx-auto";
+const META_WIDTH_CLASS = "w-[95%] sm:w-[90%] md:w-[90%] max-w-lg mx-auto";
 
 // How many runs to show immediately when the page loads
 const INITIAL_BATCH = 3;
@@ -27,10 +32,25 @@ export default function FeedPage() {
 	const [loadingMore, setLoadingMore] = useState(false);
 	const [offset, setOffset] = useState(0);
 	const [hasMore, setHasMore] = useState(true);
+	const [viewerId, setViewerId] = useState<string | null>(null);
 
 	// Track which card is currently visible
 	const [visibleIndex, setVisibleIndex] = useState(0);
 	const itemRefs = useRef<Array<HTMLDivElement | null>>([]);
+	const initialLoadRef = useRef(false);
+
+	useEffect(() => {
+		if (viewerId !== null) return;
+		if (typeof window === "undefined") return;
+
+		let existing = window.localStorage.getItem("user_id");
+		if (!existing) {
+			const generated = window.crypto?.randomUUID ? window.crypto.randomUUID() : Math.random().toString(36).slice(2);
+			window.localStorage.setItem("user_id", generated);
+			existing = generated;
+		}
+		setViewerId(existing);
+	}, [viewerId]);
 
 	// ------------------------------------------------
 	// Core loader: fetch `count` more runs from backend
@@ -38,23 +58,35 @@ export default function FeedPage() {
 	const loadMore = useCallback(
 		async (count: number) => {
 			if (loadingMore || !hasMore) return;
+			if (!viewerId) return;
 
 			setLoadingMore(true);
 			try {
-				const res = await fetch(`${API_BASE}/public-runs?limit=${count}&offset=${offset}`);
+				const params = new URLSearchParams({
+					limit: String(count),
+					offset: String(offset),
+					viewer_id: viewerId,
+				});
+
+				const res = await fetch(`${API_BASE}/public-runs?${params.toString()}`);
 				if (!res.ok) throw new Error("Failed to load feed");
 
 				const json = await res.json();
-				const newItems: RunFeedItem[] = json.items || [];
+				const rawItems: RunFeedItem[] = json.items || [];
+				const normalized = rawItems.map((item) => ({
+					...item,
+					like_count: item.like_count ?? 0,
+					liked_by_viewer: item.liked_by_viewer ?? false,
+				}));
 
 				setItems((prev) => {
 					const seen = new Set(prev.map((item) => item.run_id));
-					const deduped = newItems.filter((item) => !seen.has(item.run_id));
+					const deduped = normalized.filter((item) => !seen.has(item.run_id));
 					return [...prev, ...deduped];
 				});
 
 				// Advance offset by however many we actually received
-				const received = newItems.length;
+				const received = normalized.length;
 				const nextOffsetFromBackend = typeof json.next_offset === "number" ? json.next_offset : null;
 				setOffset((prevOffset) => nextOffsetFromBackend ?? prevOffset + received);
 
@@ -70,17 +102,18 @@ export default function FeedPage() {
 				setLoadingInitial(false);
 			}
 		},
-		[hasMore, loadingMore, offset]
+		[hasMore, loadingMore, offset, viewerId]
 	);
 
 	// -------------------------------
 	// Initial load: one batch
 	// -------------------------------
 	useEffect(() => {
-		// Load INITIAL_BATCH items once on mount
+		if (!viewerId) return;
+		if (initialLoadRef.current) return;
+		initialLoadRef.current = true;
 		loadMore(INITIAL_BATCH);
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
+	}, [viewerId, loadMore]);
 
 	// ------------------------------------------------
 	// Track which feed item is visible (by index)
@@ -130,11 +163,73 @@ export default function FeedPage() {
 	}, [visibleIndex, items.length, hasMore, loadingMore, loadMore]);
 
 	function handleLike(run_id: string) {
-		console.log("Like run", run_id);
+		if (!viewerId) return;
+
+		const target = items.find((run) => run.run_id === run_id);
+		if (!target) return;
+
+		const nextLiked = !target.liked_by_viewer;
+		const delta = nextLiked ? 1 : -1;
+
+		setItems((prev) =>
+			prev.map((run) =>
+				run.run_id === run_id
+					? { ...run, liked_by_viewer: nextLiked, like_count: Math.max(0, run.like_count + delta) }
+					: run
+			)
+		);
+
+		(async () => {
+			try {
+				const res = await fetch(`${API_BASE}/runs/${run_id}/like`, {
+					method: nextLiked ? "POST" : "DELETE",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ user_id: viewerId }),
+				});
+
+				if (!res.ok) throw new Error("Failed to toggle like");
+				const json = await res.json();
+
+				setItems((prev) =>
+					prev.map((run) =>
+						run.run_id === run_id
+							? {
+									...run,
+									like_count: typeof json.like_count === "number" ? json.like_count : run.like_count,
+									liked_by_viewer: typeof json.liked === "boolean" ? json.liked : run.liked_by_viewer,
+							  }
+							: run
+					)
+				);
+			} catch (err) {
+				console.error(err);
+				setItems((prev) =>
+					prev.map((run) =>
+						run.run_id === run_id
+							? {
+									...run,
+									liked_by_viewer: !nextLiked,
+									like_count: Math.max(0, run.like_count - delta),
+							  }
+							: run
+					)
+				);
+			}
+		})();
 	}
 
 	function handleComment(run_id: string) {
 		console.log("Comment on run", run_id);
+	}
+
+	function formatLikeCount(count: number) {
+		if (count < 1000) return count.toString();
+		const value = count / 1000;
+		if (value < 10) {
+			const rounded = Math.round(value * 10) / 10;
+			return `${Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)}k`;
+		}
+		return `${Math.round(value)}k`;
 	}
 
 	// -------------------------------
@@ -194,11 +289,11 @@ export default function FeedPage() {
 								ref={(el: HTMLDivElement | null) => {
 									itemRefs.current[index] = el;
 								}}
-								className="border border-neutral-800 rounded-3xl bg-neutral-950/80 shadow-[0_0_18px_rgba(0,0,0,0.85)] px-3 sm:px-4 py-4"
+								className="border border-neutral-800 rounded-3xl bg-neutral-950/80 shadow-[0_0_18px_rgba(0,0,0,0.85)] px-3 sm:px-4 py-3"
 							>
 								{/* Header */}
-								<div className="flex items-center justify-between mb-3">
-									<div className="flex items-center gap-2">
+								<div className="flex items-center justify-between mb-2">
+									<div className="flex items-center gap-1.5">
 										<div className="w-7 h-7 rounded-full border border-neutral-700 bg-neutral-900 flex items-center justify-center text-xs">
 											{run.username.slice(0, 2).toUpperCase()}
 										</div>
@@ -208,38 +303,66 @@ export default function FeedPage() {
 									{run.public && <span className="text-[10px] uppercase tracking-[0.2em] text-cyan-300">PUBLIC</span>}
 								</div>
 
-								<RunCarousel steps={run.steps} autoPlayActive={index === visibleIndex} initialIndex={initialCarouselIndex} />
+								<div className={CAROUSEL_WIDTH_CLASS}>
+									<RunCarousel
+										steps={run.steps}
+										autoPlayActive={index === visibleIndex}
+										initialIndex={initialCarouselIndex}
+									/>
 
-								{run.caption && (
-									<div className="mt-3 text-sm text-neutral-200 font-mono">
-										<span className="font-bold mr-2 text-neutral-50">{run.username}</span>
-										<span className="break-words whitespace-pre-line">{run.caption}</span>
+									<div className={`${META_WIDTH_CLASS} mt-0 flex flex-col gap-1.5 text-sm text-neutral-300 pb-4`}>
+										<div className="flex flex-wrap items-center gap-3">
+											<div className="flex items-center gap-1.5">
+												<button
+													type="button"
+													onClick={() => handleLike(run.run_id)}
+													aria-pressed={run.liked_by_viewer}
+													aria-label={run.liked_by_viewer ? "Unlike run" : "Like run"}
+													className={
+														"flex items-center justify-center transition-colors " +
+														(run.liked_by_viewer ? "text-cyan-300" : "text-neutral-400 hover:text-cyan-300")
+													}
+												>
+													<svg
+														viewBox="0 0 20 20"
+														className="w-6 h-6"
+														fill={run.liked_by_viewer ? "currentColor" : "none"}
+														stroke="currentColor"
+														strokeWidth="1.6"
+													>
+														<path d="M10 16.5s-4.2-2.7-6.2-4.8C2.3 10.1 2 7.9 3.5 6.4c1.1-1.1 3.1-0.9 4.1 0.1L10 8.9l2.4-2.4c1-1 3-1.2 4.1-0.1 1.5 1.5 1.2 3.7-0.3 5.3-2 2.1-6.2 4.8-6.2 4.8z" />
+													</svg>
+												</button>
+												{run.like_count > 0 && (
+													<span className="text-xs font-mono text-neutral-400">{formatLikeCount(run.like_count)}</span>
+												)}
+											</div>
+
+											<button
+												type="button"
+												onClick={() => handleComment(run.run_id)}
+												className="text-neutral-400 hover:text-cyan-300 transition-colors"
+												aria-label="Comment"
+											>
+												<svg
+													viewBox="0 0 20 20"
+													className="w-6 h-6"
+													fill="none"
+													stroke="currentColor"
+													strokeWidth="1.5"
+												>
+													<path d="M4 6h12v7H9.5L6 17v-4H4z" strokeLinejoin="round" />
+												</svg>
+											</button>
+										</div>
+
+										{run.caption && (
+											<div className="flex flex-wrap items-baseline gap-2 border-t border-neutral-800/60 pt-1.5 text-xs text-neutral-200 font-mono leading-snug">
+												<span className="font-bold text-neutral-50">{run.username}</span>
+												<span className="break-words whitespace-pre-line flex-1 min-w-[60%]">{run.caption}</span>
+											</div>
+										)}
 									</div>
-								)}
-
-								{/* Like / Comment */}
-								<div className="mt-3 flex items-center gap-4 text-sm">
-									<button
-										type="button"
-										onClick={() => handleLike(run.run_id)}
-										className="flex items-center gap-1 text-neutral-300 hover:text-cyan-300 transition-colors"
-									>
-										<svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.2">
-											<path d="M8 13s-3.5-2.3-5.2-4.1C1.4 7.3 1 5.4 2.2 4.2 3.2 3.2 4.8 3.4 5.7 4.3L8 6.5l2.3-2.2c0.9-0.9 2.5-1.1 3.5 0 1.2 1.2 0.8 3.1-0.6 4.7C11.5 10.7 8 13 8 13z" />
-										</svg>
-										<span>Like</span>
-									</button>
-
-									<button
-										type="button"
-										onClick={() => handleComment(run.run_id)}
-										className="flex items-center gap-1 text-neutral-300 hover:text-cyan-300 transition-colors"
-									>
-										<svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.2">
-											<path d="M2.5 3.5h11v6h-6.5L4 12.5v-3H2.5z" />
-										</svg>
-										<span>Comment</span>
-									</button>
 								</div>
 							</article>
 						);

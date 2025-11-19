@@ -20,7 +20,7 @@ class User(Base):
         primary_key=True,
         default=uuid.uuid4
     )
-    username: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
+    username: Mapped[str] = mapped_column(Text, nullable=False)
     email: Mapped[Optional[str]] = mapped_column(Text, unique=True, nullable=True)
     bio: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at = mapped_column(
