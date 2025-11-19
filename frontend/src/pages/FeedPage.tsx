@@ -11,6 +11,7 @@ interface RunFeedItem {
 	username: string;
 	caption: string | null;
 	public: boolean;
+	cover_step_id?: number | null;
 	steps: StepItem[];
 }
 
@@ -182,62 +183,67 @@ export default function FeedPage() {
 			{/* CONTENT BELOW FIXED HEADER */}
 			<div className="pt-20 px-4 pb-6 flex flex-col items-center w-full">
 				<div className="w-full max-w-4xl flex flex-col gap-8 pb-10">
-					{items.map((run, index) => (
-						<article
-							key={run.run_id}
-							data-index={index}
-							ref={(el: HTMLDivElement | null) => {
-								itemRefs.current[index] = el;
-							}}
-							className="border border-neutral-800 rounded-3xl bg-neutral-950/80 shadow-[0_0_18px_rgba(0,0,0,0.85)] px-3 sm:px-4 py-4"
-						>
-							{/* Header */}
-							<div className="flex items-center justify-between mb-3">
-								<div className="flex items-center gap-2">
-									<div className="w-7 h-7 rounded-full border border-neutral-700 bg-neutral-900 flex items-center justify-center text-xs">
-										{run.username.slice(0, 2).toUpperCase()}
+					{items.map((run, index) => {
+						const coverIndex = run.steps.findIndex((step) => step.is_cover);
+						const initialCarouselIndex = coverIndex >= 0 ? coverIndex : 0;
+
+						return (
+							<article
+								key={run.run_id}
+								data-index={index}
+								ref={(el: HTMLDivElement | null) => {
+									itemRefs.current[index] = el;
+								}}
+								className="border border-neutral-800 rounded-3xl bg-neutral-950/80 shadow-[0_0_18px_rgba(0,0,0,0.85)] px-3 sm:px-4 py-4"
+							>
+								{/* Header */}
+								<div className="flex items-center justify-between mb-3">
+									<div className="flex items-center gap-2">
+										<div className="w-7 h-7 rounded-full border border-neutral-700 bg-neutral-900 flex items-center justify-center text-xs">
+											{run.username.slice(0, 2).toUpperCase()}
+										</div>
+										<div className="text-sm sm:text-base tracking-wide">{run.username}</div>
 									</div>
-									<div className="text-sm sm:text-base tracking-wide">{run.username}</div>
+
+									{run.public && <span className="text-[10px] uppercase tracking-[0.2em] text-cyan-300">PUBLIC</span>}
 								</div>
 
-								{run.public && <span className="text-[10px] uppercase tracking-[0.2em] text-cyan-300">PUBLIC</span>}
-							</div>
+								<RunCarousel steps={run.steps} autoPlayActive={index === visibleIndex} initialIndex={initialCarouselIndex} />
 
-							<RunCarousel steps={run.steps} autoPlayActive={index === visibleIndex} />
+								{run.caption && (
+									<p className="mt-3 text-[13px] sm:text-sm text-neutral-300 font-mono">
+										<span className="font-bold mr-1">{run.username}</span>
+										{run.caption}
+									</p>
+								)}
 
-							{run.caption && (
-								<p className="mt-3 text-[13px] sm:text-sm text-neutral-300 font-mono">
-									<span className="font-bold mr-1">{run.username}</span>
-									{run.caption}
-								</p>
-							)}
+								{/* Like / Comment */}
+								<div className="mt-3 flex items-center gap-4 text-sm">
+									<button
+										type="button"
+										onClick={() => handleLike(run.run_id)}
+										className="flex items-center gap-1 text-neutral-300 hover:text-cyan-300 transition-colors"
+									>
+										<svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.2">
+											<path d="M8 13s-3.5-2.3-5.2-4.1C1.4 7.3 1 5.4 2.2 4.2 3.2 3.2 4.8 3.4 5.7 4.3L8 6.5l2.3-2.2c0.9-0.9 2.5-1.1 3.5 0 1.2 1.2 0.8 3.1-0.6 4.7C11.5 10.7 8 13 8 13z" />
+										</svg>
+										<span>Like</span>
+									</button>
 
-							{/* Like / Comment */}
-							<div className="mt-3 flex items-center gap-4 text-sm">
-								<button
-									type="button"
-									onClick={() => handleLike(run.run_id)}
-									className="flex items-center gap-1 text-neutral-300 hover:text-cyan-300 transition-colors"
-								>
-									<svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.2">
-										<path d="M8 13s-3.5-2.3-5.2-4.1C1.4 7.3 1 5.4 2.2 4.2 3.2 3.2 4.8 3.4 5.7 4.3L8 6.5l2.3-2.2c0.9-0.9 2.5-1.1 3.5 0 1.2 1.2 0.8 3.1-0.6 4.7C11.5 10.7 8 13 8 13z" />
-									</svg>
-									<span>Like</span>
-								</button>
-
-								<button
-									type="button"
-									onClick={() => handleComment(run.run_id)}
-									className="flex items-center gap-1 text-neutral-300 hover:text-cyan-300 transition-colors"
-								>
-									<svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.2">
-										<path d="M2.5 3.5h11v6h-6.5L4 12.5v-3H2.5z" />
-									</svg>
-									<span>Comment</span>
-								</button>
-							</div>
-						</article>
-					))}
+									<button
+										type="button"
+										onClick={() => handleComment(run.run_id)}
+										className="flex items-center gap-1 text-neutral-300 hover:text-cyan-300 transition-colors"
+									>
+										<svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.2">
+											<path d="M2.5 3.5h11v6h-6.5L4 12.5v-3H2.5z" />
+										</svg>
+										<span>Comment</span>
+									</button>
+								</div>
+							</article>
+						);
+					})}
 
 					{/* Status row */}
 					<div className="h-16 flex items-center justify-center text-neutral-500 text-xs font-mono">

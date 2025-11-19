@@ -1,5 +1,5 @@
 // src/pages/SummaryPage.tsx
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import RunCarousel from "../components/RunCarousel";
 import type { StepItem } from "../components/RunCarousel";
 
@@ -10,6 +10,11 @@ export default function SummaryPage() {
 	const [loading, setLoading] = useState(true);
 	const [runId, setRunId] = useState<string | null>(null);
 	const [isPublic, setIsPublic] = useState<boolean>(true);
+	const defaultCoverAttempted = useRef(false);
+
+	useEffect(() => {
+		defaultCoverAttempted.current = false;
+	}, [runId]);
 
 	// -----------------------------
 	// Load steps + run visibility
@@ -74,6 +79,33 @@ export default function SummaryPage() {
 		window.location.href = "/feed";
 	}
 
+async function handleSetCover(stepId: number) {
+	if (!runId) return;
+
+	setSteps((prev) =>
+		prev.map((step) => ({
+			...step,
+			is_cover: step.id === stepId,
+		}))
+	);
+
+	try {
+		await fetch(`${API_BASE}/runs/${runId}/cover-step`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ step_id: stepId }),
+		});
+	} catch (err) {
+		console.error("Failed to set cover photo:", err);
+		setSteps((prev) =>
+			prev.map((step) => ({
+				...step,
+				is_cover: step.id === stepId ? false : step.is_cover,
+			}))
+		);
+	}
+}
+
 	// -----------------------------
 	// UI handlers
 	// -----------------------------
@@ -98,6 +130,19 @@ export default function SummaryPage() {
 		if (!ok) return;
 		deleteRun();
 	}
+
+	useEffect(() => {
+		if (!runId) return;
+		if (steps.length === 0) return;
+		if (steps.some((s) => s.is_cover)) return;
+		if (defaultCoverAttempted.current) return;
+
+		const candidate = steps.find((s) => s.proof_url);
+		if (!candidate) return;
+
+		defaultCoverAttempted.current = true;
+		handleSetCover(candidate.id);
+	}, [runId, steps]);
 
 	// -----------------------------
 	// Render
@@ -124,6 +169,10 @@ export default function SummaryPage() {
 		);
 	}
 
+	const coverStepId = steps.find((s) => s.is_cover)?.id ?? null;
+	const coverIndex = coverStepId ? steps.findIndex((s) => s.id === coverStepId) : -1;
+	const initialCarouselIndex = coverIndex >= 0 ? coverIndex : 0;
+
 	return (
 		<div className="min-h-screen w-full px-4 py-4 flex flex-col items-center text-neutral-100 font-['VT323']">
 			<h1 className="text-3xl sm:text-4xl md:text-5xl mb-2 tracking-[0.3em] text-center drop-shadow-[0_0_12px_rgba(255,255,255,0.35)]">
@@ -131,7 +180,14 @@ export default function SummaryPage() {
 			</h1>
 
 			<div className="w-full max-w-4xl flex flex-col items-center gap-0 md:gap-0">
-				<RunCarousel steps={steps} showDelete onDelete={handleDelete} />
+				<RunCarousel
+					steps={steps}
+					showDelete
+					onDelete={handleDelete}
+					initialIndex={initialCarouselIndex}
+					coverStepId={coverStepId}
+					onSetCover={handleSetCover}
+				/>
 
 				<button
 					type="button"

@@ -99,12 +99,29 @@ class Run(Base):
     # How many skips used this run
     skips_used: Mapped[int] = mapped_column(Integer, default=0)
 
+    cover_step_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger,
+        ForeignKey("run_steps.id", ondelete="SET NULL"),
+        nullable=True
+    )
+
     # -----------------------------------------------------
     # Relationships
     # -----------------------------------------------------
     user = relationship("User", back_populates="runs")
 
-    steps = relationship("RunStep", back_populates="run", cascade="all, delete-orphan")
+    steps = relationship(
+        "RunStep",
+        back_populates="run",
+        cascade="all, delete-orphan",
+        foreign_keys="RunStep.run_id",
+    )
+
+    cover_step = relationship(
+        "RunStep",
+        primaryjoin="Run.cover_step_id == RunStep.id",
+        viewonly=True,
+    )
 
     # FIXED: these must be here to match Like.back_populates and Comment.back_populates
     likes = relationship("Like", back_populates="run", cascade="all, delete-orphan")
@@ -143,7 +160,11 @@ class RunStep(Base):
 
     completed_at = mapped_column(TIMESTAMP(timezone=True), nullable=True)
 
-    run = relationship("Run", back_populates="steps")
+    run = relationship(
+        "Run",
+        back_populates="steps",
+        foreign_keys=[run_id],
+    )
     level = relationship("Level", back_populates="steps")
 
 

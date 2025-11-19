@@ -213,6 +213,11 @@ def finalize_step(
         completed_at=datetime.utcnow(),
     )
     db.add(step)
+    db.flush()
+
+    if run.cover_step_id is None and proof_url:
+        run.cover_step_id = step.id
+
     db.commit()
 
 
@@ -244,6 +249,7 @@ def get_run(run_id: UUID, db: Session = Depends(get_db)):
         "started_at": run.started_at.isoformat() if run.started_at else None,
         "finished_at": run.finished_at.isoformat() if run.finished_at else None,
         "public": run.public,
+        "cover_step_id": run.cover_step_id,
 
         "pending_level_id": run.pending_level_id,
         "pending_started_at": run.pending_started_at.isoformat() if run.pending_started_at else None,
@@ -420,6 +426,33 @@ def update_run(run_id: UUID, payload: dict = Body(...), db: Session = Depends(ge
     db.commit()
     return {"ok": True}
 
+
+class CoverStepPayload(BaseModel):
+    step_id: int
+
+
+@app.post("/runs/{run_id}/cover-step")
+def set_cover_step(run_id: UUID, payload: CoverStepPayload, db: Session = Depends(get_db)):
+    run = db.query(Run).filter(Run.id == run_id).first()
+    if not run:
+        raise HTTPException(404, "Run not found")
+
+    step = (
+        db.query(RunStep)
+        .filter(RunStep.id == payload.step_id, RunStep.run_id == run_id)
+        .first()
+    )
+    if not step:
+        raise HTTPException(404, "Step not found")
+
+    if not step.proof_url:
+        raise HTTPException(400, "Cannot set cover photo on a step without proof.")
+
+    run.cover_step_id = step.id
+    db.commit()
+
+    return {"ok": True, "cover_step_id": step.id}
+
 @app.delete("/runs/{run_id}")
 def delete_run(run_id: UUID, db: Session = Depends(get_db)):
     run = db.query(Run).filter(Run.id == run_id).first()
@@ -564,6 +597,7 @@ def get_run_steps(run_id: UUID, db: Session = Depends(get_db)):
     for s in steps:
         level = db.query(Level).filter(Level.id == s.level_id).first()
         out.append({
+            "id": s.id,
             "level_number": level.level_number if level else None,
             "title": level.title if level else None,
             "description": level.description if level else None,
@@ -572,9 +606,10 @@ def get_run_steps(run_id: UUID, db: Session = Depends(get_db)):
             "skipped_whole": s.skipped_whole,
             "proof_url": s.proof_url,
             "completed_at": s.completed_at.isoformat() if s.completed_at else None,
+            "is_cover": run.cover_step_id == s.id,
         })
 
-    return {"run_id": str(run.id), "steps": out}
+    return {"run_id": str(run.id), "cover_step_id": run.cover_step_id, "steps": out}
 
 
 # ------------------------------------------------------------
@@ -621,6 +656,7 @@ def list_public_runs(
             level = db.query(Level).filter(Level.id == s.level_id).first()
             step_dicts.append(
                 {
+                    "id": s.id,
                     "level_number": level.level_number if level else None,
                     "title": level.title if level else None,
                     "description": level.description if level else None,
@@ -628,6 +664,7 @@ def list_public_runs(
                     "skipped_whole": s.skipped_whole,
                     "proof_url": s.proof_url,
                     "completed_at": s.completed_at.isoformat() if s.completed_at else None,
+                    "is_cover": run.cover_step_id == s.id,
                 }
             )
 
@@ -638,6 +675,7 @@ def list_public_runs(
                 "username": user.username,
                 "caption": run.caption,
                 "public": run.public,
+                "cover_step_id": run.cover_step_id,
                 "steps": step_dicts,
             }
         )

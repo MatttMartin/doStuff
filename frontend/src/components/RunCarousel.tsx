@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 
 export interface StepItem {
+	id: number;
 	level_number: number | null;
 	title: string | null;
 	description: string | null;
@@ -10,6 +11,7 @@ export interface StepItem {
 	skipped_whole: boolean;
 	proof_url: string | null;
 	completed_at: string | null;
+	is_cover?: boolean;
 }
 
 interface RunCarouselProps {
@@ -24,6 +26,9 @@ interface RunCarouselProps {
 	 * Defaults to true (safe for SummaryPage, etc.).
 	 */
 	autoPlayActive?: boolean;
+	initialIndex?: number;
+	coverStepId?: number | null;
+	onSetCover?: (stepId: number) => void;
 }
 
 // Guess if a URL looks like a video (matches backend extensions)
@@ -32,14 +37,23 @@ function isVideoUrl(url: string | null): boolean {
 	return /\.(mp4|webm|mov|ogg)(\?|$)/i.test(url);
 }
 
-export default function RunCarousel({ steps, showDelete = false, onDelete, autoPlayActive = true }: RunCarouselProps) {
-	const [selectedIndex, setSelectedIndex] = useState(0);
+export default function RunCarousel({
+	steps,
+	showDelete = false,
+	onDelete,
+	autoPlayActive = true,
+	initialIndex = 0,
+	coverStepId = null,
+	onSetCover,
+}: RunCarouselProps) {
+	const [selectedIndex, setSelectedIndex] = useState(initialIndex);
 	const [muteMap, setMuteMap] = useState<Record<number, boolean>>({});
 	const [indicatorMap, setIndicatorMap] = useState<Record<number, "muted" | "unmuted">>({});
 	const [emblaRef, emblaApi] = useEmblaCarousel({
 		loop: false,
 		align: "center",
 		dragFree: false,
+		startIndex: initialIndex,
 	});
 
 	const onSelect = useCallback(() => {
@@ -52,6 +66,13 @@ useEffect(() => {
 	onSelect();
 	emblaApi.on("select", onSelect);
 }, [emblaApi, onSelect]);
+
+useEffect(() => {
+	if (!emblaApi) return;
+	if (typeof initialIndex !== "number") return;
+	emblaApi.scrollTo(initialIndex, true);
+	setSelectedIndex(initialIndex);
+}, [initialIndex, emblaApi]);
 
 useEffect(() => {
 	return () => {
@@ -211,7 +232,7 @@ useEffect(() => {
 						const indicatorState = proofIsVideo ? indicatorMap[idx] ?? (isMuted ? "muted" : null) : null;
 
 						return (
-							<div key={idx} className="flex-[0_0_100%] px-1 sm:px-2">
+							<div key={`slide-${s.id ?? idx}`} className="flex-[0_0_100%] px-1 sm:px-2">
 								<div className="bg-neutral-950/80 border border-neutral-800/90 rounded-3xl px-4 sm:px-5 pt-3 pb-3 shadow-[0_0_18px_rgba(0,0,0,0.8)]">
 									<p className="text-[11px] text-neutral-500 tracking-[0.2em] mb-">LEVEL {s.level_number ?? "?"}</p>
 
@@ -275,6 +296,21 @@ useEffect(() => {
 												)}
 											</div>
 										)}
+
+										{onSetCover && s.proof_url && (
+											<button
+												type="button"
+												onClick={() => onSetCover(s.id)}
+												className={
+													"absolute top-2 left-2 rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.3em] transition-all " +
+													(coverStepId === s.id
+														? "bg-cyan-500/20 border-cyan-200 text-cyan-100 shadow-[0_0_12px_rgba(0,255,255,0.6)]"
+														: "bg-black/65 border-neutral-600 text-neutral-200 hover:border-neutral-200")
+												}
+											>
+												{coverStepId === s.id ? "Cover photo" : "Set cover photo"}
+											</button>
+										)}
 									</div>
 
 									<p className="mt-1 text-[11px] text-neutral-400 font-mono">{formatStatus(s)}</p>
@@ -330,9 +366,9 @@ useEffect(() => {
 
 				{steps.length > 1 && (
 					<div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
-						{steps.map((_, idx) => (
+						{steps.map((step, idx) => (
 							<button
-								key={idx}
+								key={`dot-${step.id ?? idx}`}
 								type="button"
 								onClick={() => scrollTo(idx)}
 								className={
