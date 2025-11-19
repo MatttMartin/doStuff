@@ -46,11 +46,16 @@ export default function FeedPage() {
 				const json = await res.json();
 				const newItems: RunFeedItem[] = json.items || [];
 
-				setItems((prev) => [...prev, ...newItems]);
+				setItems((prev) => {
+					const seen = new Set(prev.map((item) => item.run_id));
+					const deduped = newItems.filter((item) => !seen.has(item.run_id));
+					return [...prev, ...deduped];
+				});
 
 				// Advance offset by however many we actually received
 				const received = newItems.length;
-				setOffset((prevOffset) => prevOffset + received);
+				const nextOffsetFromBackend = typeof json.next_offset === "number" ? json.next_offset : null;
+				setOffset((prevOffset) => nextOffsetFromBackend ?? prevOffset + received);
 
 				// Backend tells us if there might be more
 				const backendHasMore = json.has_more ?? received === count;

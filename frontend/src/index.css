@@ -55,6 +55,25 @@
 	}
 }
 
+@keyframes indicatorFade {
+	0% {
+		opacity: 0;
+		transform: translateY(-4px);
+	}
+	20% {
+		opacity: 1;
+		transform: translateY(0);
+	}
+	80% {
+		opacity: 1;
+		transform: translateY(0);
+	}
+	100% {
+		opacity: 0;
+		transform: translateY(-4px);
+	}
+}
+
 /* Hide scrollbars */
 .scrollbar-hide::-webkit-scrollbar {
 	display: none;

@@ -34,9 +34,8 @@ function isVideoUrl(url: string | null): boolean {
 
 export default function RunCarousel({ steps, showDelete = false, onDelete, autoPlayActive = true }: RunCarouselProps) {
 	const [selectedIndex, setSelectedIndex] = useState(0);
-	const [isPlayingMap, setIsPlayingMap] = useState<Record<number, boolean>>({});
-	const [controlsVisibleMap, setControlsVisibleMap] = useState<Record<number, boolean>>({});
-
+	const [muteMap, setMuteMap] = useState<Record<number, boolean>>({});
+	const [indicatorMap, setIndicatorMap] = useState<Record<number, "muted" | "unmuted">>({});
 	const [emblaRef, emblaApi] = useEmblaCarousel({
 		loop: false,
 		align: "center",
@@ -48,11 +47,18 @@ export default function RunCarousel({ steps, showDelete = false, onDelete, autoP
 		setSelectedIndex(emblaApi.selectedScrollSnap());
 	}, [emblaApi]);
 
-	useEffect(() => {
-		if (!emblaApi) return;
-		onSelect();
-		emblaApi.on("select", onSelect);
-	}, [emblaApi, onSelect]);
+useEffect(() => {
+	if (!emblaApi) return;
+	onSelect();
+	emblaApi.on("select", onSelect);
+}, [emblaApi, onSelect]);
+
+useEffect(() => {
+	return () => {
+		Object.values(indicatorTimeouts.current).forEach((id) => window.clearTimeout(id));
+		Object.values(holdTimeoutRef.current).forEach((id) => window.clearTimeout(id));
+	};
+}, []);
 
 	const scrollPrev = () => emblaApi && emblaApi.scrollPrev();
 	const scrollNext = () => emblaApi && emblaApi.scrollNext();
@@ -69,24 +75,99 @@ export default function RunCarousel({ steps, showDelete = false, onDelete, autoP
 		return iso.replace("T", " ").slice(0, 16);
 	}
 
-	// ----- VIDEO AUTOPLAY / PAUSE LOGIC -----
+	// ----- VIDEO INTERACTION HELPERS -----
 	const videoRefs = useRef<Array<HTMLVideoElement | null>>([]);
-	const requestVideoPlay = (idx: number) => {
-		const video = videoRefs.current[idx];
-		if (!video) return;
-		setControlsVisibleMap((prev) => ({ ...prev, [idx]: true }));
-		video.play().catch(() => {
-			// Some mobile browsers still block autoplay; rely on overlay tap retry.
-		});
-	};
+	const indicatorTimeouts = useRef<Record<number, number>>({});
+	const holdTimeoutRef = useRef<Record<number, number>>({});
+	const holdActiveRef = useRef<Record<number, boolean>>({});
+	const suppressClickRef = useRef<Record<number, boolean>>({});
 
-	const handleVideoPlayState = (idx: number, playing: boolean) => {
-		setIsPlayingMap((prev) => ({ ...prev, [idx]: playing }));
-		if (!playing && idx === selectedIndex && autoPlayActive) {
-			// Ensure overlay reappears when feed pauses videos off-screen.
-			setControlsVisibleMap((prev) => ({ ...prev, [idx]: prev[idx] ?? false }));
+	const showIndicator = useCallback((idx: number, state: "muted" | "unmuted") => {
+		setIndicatorMap((prev) => ({ ...prev, [idx]: state }));
+
+		if (indicatorTimeouts.current[idx]) {
+			window.clearTimeout(indicatorTimeouts.current[idx]);
+			delete indicatorTimeouts.current[idx];
 		}
-	};
+
+		if (state === "unmuted") {
+			indicatorTimeouts.current[idx] = window.setTimeout(() => {
+				setIndicatorMap((prev) => {
+					if (!(idx in prev)) return prev;
+					const next = { ...prev };
+					delete next[idx];
+					return next;
+				});
+				delete indicatorTimeouts.current[idx];
+			}, 1200);
+		}
+	}, []);
+
+	const toggleMute = useCallback(
+		(idx: number) => {
+			setMuteMap((prev) => {
+				const current = prev[idx] ?? true;
+				const nextMuted = !current;
+				const video = videoRefs.current[idx];
+				if (video) {
+					video.muted = nextMuted;
+					if (!nextMuted) {
+						video.play().catch(() => {
+							/* ignore autoplay errors */
+						});
+					}
+				}
+				showIndicator(idx, nextMuted ? "muted" : "unmuted");
+				return { ...prev, [idx]: nextMuted };
+			});
+		},
+		[showIndicator]
+	);
+
+	const handlePointerDown = useCallback((idx: number) => {
+		if (holdTimeoutRef.current[idx]) {
+			window.clearTimeout(holdTimeoutRef.current[idx]);
+		}
+
+		holdTimeoutRef.current[idx] = window.setTimeout(() => {
+			const video = videoRefs.current[idx];
+			if (!video) return;
+			holdActiveRef.current[idx] = true;
+			suppressClickRef.current[idx] = true;
+			video.pause();
+		}, 150);
+	}, []);
+
+	const handlePointerRelease = useCallback((idx: number) => {
+		if (holdTimeoutRef.current[idx]) {
+			window.clearTimeout(holdTimeoutRef.current[idx]);
+			delete holdTimeoutRef.current[idx];
+		}
+
+		if (holdActiveRef.current[idx]) {
+			holdActiveRef.current[idx] = false;
+			const video = videoRefs.current[idx];
+			if (video) {
+				video.play().catch(() => {
+					/* ignore autoplay errors */
+				});
+			}
+			window.setTimeout(() => {
+				delete suppressClickRef.current[idx];
+			}, 0);
+		}
+	}, []);
+
+	const handleVideoClick = useCallback(
+		(idx: number) => {
+			if (suppressClickRef.current[idx]) {
+				delete suppressClickRef.current[idx];
+				return;
+			}
+			toggleMute(idx);
+		},
+		[toggleMute]
+	);
 
 	// Whenever the selected slide OR autoplay-allowed flag changes,
 	// pause all videos and only play the one on the active slide (if any).
@@ -120,8 +201,8 @@ export default function RunCarousel({ steps, showDelete = false, onDelete, autoP
 				<div className="flex">
 					{steps.map((s, idx) => {
 						const proofIsVideo = isVideoUrl(s.proof_url);
-						const playingNow = !!isPlayingMap[idx];
-						const controlsVisible = !!controlsVisibleMap[idx];
+						const isMuted = muteMap[idx] ?? true;
+						const indicatorState = proofIsVideo ? indicatorMap[idx] ?? (isMuted ? "muted" : null) : null;
 
 						return (
 							<div key={idx} className="flex-[0_0_100%] px-1 sm:px-2">
@@ -143,21 +224,17 @@ export default function RunCarousel({ steps, showDelete = false, onDelete, autoP
 														videoRefs.current[idx] = el;
 													}}
 													src={s.proof_url}
-													className="w-full h-full object-contain"
+													className="w-full h-full object-contain select-none"
 													autoPlay={autoPlayActive && idx === selectedIndex}
 													playsInline
-													muted
+													muted={isMuted}
 													preload="metadata"
-													controls={controlsVisible}
-													controlsList="nodownload noplaybackrate nofullscreen"
-													disablePictureInPicture
-													onPlay={() => handleVideoPlayState(idx, true)}
-													onPause={() => handleVideoPlayState(idx, false)}
-													onClick={() => {
-														if (!controlsVisible) {
-															setControlsVisibleMap((prev) => ({ ...prev, [idx]: true }));
-														}
-													}}
+													loop
+													onClick={() => handleVideoClick(idx)}
+													onPointerDown={() => handlePointerDown(idx)}
+													onPointerUp={() => handlePointerRelease(idx)}
+													onPointerLeave={() => handlePointerRelease(idx)}
+													onPointerCancel={() => handlePointerRelease(idx)}
 												/>
 											) : (
 												<img src={s.proof_url} className="w-full h-full object-contain" />
@@ -166,29 +243,27 @@ export default function RunCarousel({ steps, showDelete = false, onDelete, autoP
 											<div className="text-neutral-600 font-mono text-xs">no proof</div>
 										)}
 
-									{proofIsVideo && !playingNow && (
-										<button
-											type="button"
-											onClick={() => requestVideoPlay(idx)}
-											className="absolute inset-0 flex items-center justify-center bg-black/25 hover:bg-black/35 transition-colors"
-											aria-label="Play proof video"
-										>
-											<svg viewBox="0 0 36 36" className="w-10 h-10 drop-shadow-[0_0_8px_rgba(0,0,0,0.7)]" fill="rgba(255,255,255,0.85)">
-												<path d="M12 9l16 9-16 9z" />
-											</svg>
-										</button>
-									)}
-
-										{proofIsVideo && playingNow && (
-											<button
-												type="button"
-												onClick={() => setControlsVisibleMap((prev) => ({ ...prev, [idx]: !prev[idx] }))}
-												className="absolute top-2 right-2 rounded-full border border-neutral-700/80 bg-black/60 text-[10px] px-3 py-1 tracking-[0.2em] text-neutral-200 hover:border-neutral-200 transition-colors"
-												aria-pressed={controlsVisible}
-												aria-label={controlsVisible ? "Hide video controls" : "Show video controls"}
+										{indicatorState && (
+											<div
+												className={
+													"absolute top-2 right-2 rounded-full bg-black/75 text-white pointer-events-none " +
+													(indicatorState === "muted" ? "p-2" : "p-2 animate-[indicatorFade_1.2s_ease_forwards]")
+												}
 											>
-												{controlsVisible ? "HIDE" : "CTRL"}
-											</button>
+												{indicatorState === "muted" ? (
+													<svg viewBox="0 0 20 20" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.6">
+														<path d="M4 7h3l4-3v12l-4-3H4z" />
+														<path d="M14 6l4 8" />
+														<path d="M18 6l-4 8" />
+													</svg>
+												) : (
+													<svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.6">
+														<path d="M5 9h3l5-4v14l-5-4H5z" />
+														<path d="M16 8c1.1 1 1.8 2.4 1.8 4s-.7 3-1.8 4" strokeLinecap="round" />
+														<path d="M18.5 5c1.9 1.6 3.1 4 3.1 7s-1.2 5.4-3.1 7" strokeLinecap="round" />
+													</svg>
+												)}
+											</div>
 										)}
 									</div>
 
