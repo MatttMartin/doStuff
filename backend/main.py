@@ -430,8 +430,16 @@ def finish_run(run_id: UUID, db: Session = Depends(get_db)):
 # ------------------------------------------------------------
 # SUPABASE UPLOAD
 # ------------------------------------------------------------
-MAX_BYTES = 5 * 1024 * 1024
-ALLOWED = {"image/jpeg", "image/png", "image/webp"}
+# e.g. 50 MB – you can tune this
+MAX_BYTES = 50 * 1024 * 1024
+
+ALLOWED = {
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "video/mp4",
+    "video/webm",
+}
 
 def _supabase():
     url = os.getenv("SUPABASE_URL")
@@ -439,6 +447,7 @@ def _supabase():
     if not url or not key:
         raise RuntimeError("Supabase env not set")
     return create_client(url, key)
+
 
 
 import time
@@ -463,13 +472,22 @@ def supabase_upload_with_retry(client, bucket, path, data, headers, retries=3):
 @app.post("/upload")
 async def upload_proof(file: UploadFile = File(...)):
     if file.content_type not in ALLOWED:
-        raise HTTPException(status_code=415, detail="Only jpg/png/webp allowed")
+        raise HTTPException(
+            status_code=415,
+            detail="Only jpg/png/webp/mp4/webm allowed",
+        )
 
     data = await file.read()
     if len(data) > MAX_BYTES:
-        raise HTTPException(status_code=413, detail="Max 5MB")
+        raise HTTPException(status_code=413, detail="Max 50MB")
 
-    ext_map = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
+    ext_map = {
+        "image/jpeg": "jpg",
+        "image/png": "png",
+        "image/webp": "webp",
+        "video/mp4": "mp4",
+        "video/webm": "webm",
+    }
     ext = ext_map[file.content_type]
     ymd = datetime.utcnow().strftime("%Y/%m")
     name = secrets.token_hex(16) + f".{ext}"
@@ -479,12 +497,12 @@ async def upload_proof(file: UploadFile = File(...)):
     bucket = os.getenv("SUPABASE_BUCKET", "proofs")
 
     try:
-            supabase_upload_with_retry(
+        supabase_upload_with_retry(
             sb,
             bucket,
             path,
             data,
-            {"content-type": file.content_type}
+            {"content-type": file.content_type},
         )
     except Exception as exc:
         print("Supabase upload failed:", repr(exc))

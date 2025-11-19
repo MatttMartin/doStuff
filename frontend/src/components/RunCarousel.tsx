@@ -20,6 +20,12 @@ interface RunCarouselProps {
 	onDelete?: () => void;
 }
 
+// Simple helper: guess if a URL is a video by its extension
+function isVideoUrl(url: string | null): boolean {
+	if (!url) return false;
+	return /\.(mp4|webm|mov|ogg)(\?|$)/i.test(url);
+}
+
 export default function RunCarousel({ steps, showDelete = false, onDelete }: RunCarouselProps) {
 	const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -76,7 +82,11 @@ export default function RunCarousel({ steps, showDelete = false, onDelete }: Run
 
 								<div className="mt-2 mb-2 rounded-2xl border border-neutral-800 bg-neutral-900/70 overflow-hidden h-60 md:h-64 flex items-center justify-center">
 									{s.proof_url ? (
-										<img src={s.proof_url} className="w-full h-full object-contain" />
+										isVideoUrl(s.proof_url) ? (
+											<video src={s.proof_url} className="w-full h-full object-contain" controls playsInline />
+										) : (
+											<img src={s.proof_url} className="w-full h-full object-contain" />
+										)
 									) : (
 										<div className="text-neutral-600 font-mono text-xs">no proof</div>
 									)}
