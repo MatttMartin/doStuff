@@ -10,6 +10,7 @@ export default function SummaryPage() {
 	const [loading, setLoading] = useState(true);
 	const [runId, setRunId] = useState<string | null>(null);
 	const [isPublic, setIsPublic] = useState<boolean>(true);
+	const [caption, setCaption] = useState<string>("");
 	const defaultCoverAttempted = useRef(false);
 
 	useEffect(() => {
@@ -38,6 +39,7 @@ export default function SummaryPage() {
 				const runRes = await fetch(`${API_BASE}/runs/${stored}`);
 				const runJson = await runRes.json();
 				setIsPublic(!!runJson.public);
+				setCaption(runJson.caption ?? "");
 			} catch (err) {
 				console.error("Failed to load run summary", err);
 			}
@@ -50,19 +52,19 @@ export default function SummaryPage() {
 	// -----------------------------
 	// Backend actions
 	// -----------------------------
-	async function updateVisibility(publicValue: boolean) {
-		if (!runId) return;
+async function updateVisibility(publicValue: boolean) {
+	if (!runId) return;
 
-		try {
-			await fetch(`${API_BASE}/runs/${runId}`, {
-				method: "PATCH",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ public: publicValue }),
-			});
-		} catch (err) {
-			console.error("Failed to update public/private:", err);
-		}
+	try {
+		await fetch(`${API_BASE}/runs/${runId}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ public: publicValue }),
+		});
+	} catch (err) {
+		console.error("Failed to update public/private:", err);
 	}
+}
 
 	async function deleteRun() {
 		if (!runId) return;
@@ -114,10 +116,20 @@ async function handleSetCover(stepId: number) {
 		updateVisibility(nextValue);
 	}
 
-	async function handlePost() {
-		if (!runId) return;
+async function handlePost() {
+	if (!runId) return;
 
-		await updateVisibility(isPublic);
+	await updateVisibility(isPublic);
+
+	try {
+		await fetch(`${API_BASE}/runs/${runId}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ caption }),
+		});
+	} catch (err) {
+		console.error("Failed to save caption:", err);
+	}
 
 		// optional: call finish endpoint again (does nothing if already finished)
 		await fetch(`${API_BASE}/runs/${runId}/finish`, { method: "POST" });
@@ -188,6 +200,19 @@ async function handleSetCover(stepId: number) {
 					coverStepId={coverStepId}
 					onSetCover={handleSetCover}
 				/>
+
+				<div className="w-full max-w-lg mt-6">
+					<label htmlFor="caption" className="block text-sm uppercase tracking-[0.3em] text-neutral-500 mb-2">
+						Caption
+					</label>
+					<textarea
+						id="caption"
+						value={caption}
+						onChange={(e) => setCaption(e.target.value)}
+						placeholder="Tell everyone about your run..."
+						className="w-full min-h-[90px] rounded-2xl bg-black/60 border border-neutral-800 px-4 py-3 text-lg text-neutral-100 focus:outline-none focus:border-cyan-300 focus:ring-1 focus:ring-cyan-400 transition-all resize-none"
+					/>
+				</div>
 
 				<button
 					type="button"

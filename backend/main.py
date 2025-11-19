@@ -423,6 +423,9 @@ def update_run(run_id: UUID, payload: dict = Body(...), db: Session = Depends(ge
     if "public" in payload:
         run.public = bool(payload["public"])
 
+    if "caption" in payload:
+        run.caption = payload["caption"]
+
     db.commit()
     return {"ok": True}
 

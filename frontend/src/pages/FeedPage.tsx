@@ -211,10 +211,10 @@ export default function FeedPage() {
 								<RunCarousel steps={run.steps} autoPlayActive={index === visibleIndex} initialIndex={initialCarouselIndex} />
 
 								{run.caption && (
-									<p className="mt-3 text-[13px] sm:text-sm text-neutral-300 font-mono">
-										<span className="font-bold mr-1">{run.username}</span>
-										{run.caption}
-									</p>
+									<div className="mt-3 text-sm text-neutral-200 font-mono">
+										<span className="font-bold mr-2 text-neutral-50">{run.username}</span>
+										<span className="break-words whitespace-pre-line">{run.caption}</span>
+									</div>
 								)}
 
 								{/* Like / Comment */}
