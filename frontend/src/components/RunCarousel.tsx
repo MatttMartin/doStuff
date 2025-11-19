@@ -82,6 +82,19 @@ useEffect(() => {
 	const holdActiveRef = useRef<Record<number, boolean>>({});
 	const suppressClickRef = useRef<Record<number, boolean>>({});
 
+	const ensureVideoPlaying = useCallback(
+		(idx: number) => {
+			const video = videoRefs.current[idx];
+			if (!video) return;
+			if (idx === selectedIndex && autoPlayActive) {
+				video.play().catch(() => {
+					/* autoplay blocked */
+				});
+			}
+		},
+		[selectedIndex, autoPlayActive]
+	);
+
 	const showIndicator = useCallback((idx: number, state: "muted" | "unmuted") => {
 		setIndicatorMap((prev) => ({ ...prev, [idx]: state }));
 
@@ -112,16 +125,14 @@ useEffect(() => {
 				if (video) {
 					video.muted = nextMuted;
 					if (!nextMuted) {
-						video.play().catch(() => {
-							/* ignore autoplay errors */
-						});
+						ensureVideoPlaying(idx);
 					}
 				}
 				showIndicator(idx, nextMuted ? "muted" : "unmuted");
 				return { ...prev, [idx]: nextMuted };
 			});
 		},
-		[showIndicator]
+		[showIndicator, ensureVideoPlaying]
 	);
 
 	const handlePointerDown = useCallback((idx: number) => {
@@ -146,17 +157,12 @@ useEffect(() => {
 
 		if (holdActiveRef.current[idx]) {
 			holdActiveRef.current[idx] = false;
-			const video = videoRefs.current[idx];
-			if (video) {
-				video.play().catch(() => {
-					/* ignore autoplay errors */
-				});
-			}
+			ensureVideoPlaying(idx);
 			window.setTimeout(() => {
 				delete suppressClickRef.current[idx];
 			}, 0);
 		}
-	}, []);
+	}, [ensureVideoPlaying]);
 
 	const handleVideoClick = useCallback(
 		(idx: number) => {
@@ -228,8 +234,12 @@ useEffect(() => {
 													autoPlay={autoPlayActive && idx === selectedIndex}
 													playsInline
 													muted={isMuted}
-													preload="metadata"
+													preload="auto"
 													loop
+													draggable={false}
+													onLoadedData={() => ensureVideoPlaying(idx)}
+													onContextMenu={(e) => e.preventDefault()}
+													style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none" }}
 													onClick={() => handleVideoClick(idx)}
 													onPointerDown={() => handlePointerDown(idx)}
 													onPointerUp={() => handlePointerRelease(idx)}
