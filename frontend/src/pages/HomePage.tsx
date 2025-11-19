@@ -37,9 +37,7 @@ export default function HomePage() {
 				Do Stuff
 			</h1>
 
-			<p className="mt-4 text-neutral-400 font-mono tracking-widest text-sm">
-				a challenge generator for getting unstuck
-			</p>
+			<p className="mt-4 text-neutral-400 font-mono tracking-widest text-sm"></p>
 
 			<button
 				className="

@@ -14,6 +14,12 @@ interface RunFeedItem {
 	steps: StepItem[];
 }
 
+// How many runs to show immediately when the page loads
+const INITIAL_BATCH = 3;
+
+// After that, we load EXACTLY 1 run at a time as the user scrolls
+const INCREMENT_BATCH = 3;
+
 export default function FeedPage() {
 	const [items, setItems] = useState<RunFeedItem[]>([]);
 	const [loadingInitial, setLoadingInitial] = useState(true);
@@ -21,52 +27,101 @@ export default function FeedPage() {
 	const [offset, setOffset] = useState(0);
 	const [hasMore, setHasMore] = useState(true);
 
-	const limit = 5;
-	const loaderRef = useRef<HTMLDivElement | null>(null);
+	// Track which card is currently visible
+	const [visibleIndex, setVisibleIndex] = useState(0);
+	const itemRefs = useRef<Array<HTMLDivElement | null>>([]);
 
-	const loadMore = useCallback(async () => {
-		if (loadingMore || !hasMore) return;
+	// ------------------------------------------------
+	// Core loader: fetch `count` more runs from backend
+	// ------------------------------------------------
+	const loadMore = useCallback(
+		async (count: number) => {
+			if (loadingMore || !hasMore) return;
 
-		setLoadingMore(true);
-		try {
-			const res = await fetch(`${API_BASE}/public-runs?limit=${limit}&offset=${offset}`);
-			if (!res.ok) throw new Error("Failed to load feed");
-			const json = await res.json();
+			setLoadingMore(true);
+			try {
+				const res = await fetch(`${API_BASE}/public-runs?limit=${count}&offset=${offset}`);
+				if (!res.ok) throw new Error("Failed to load feed");
 
-			const newItems: RunFeedItem[] = json.items || [];
-			setItems((prev) => [...prev, ...newItems]);
-			setOffset(json.next_offset ?? offset + newItems.length);
-			setHasMore(json.has_more ?? newItems.length === limit);
-		} catch (err) {
-			console.error(err);
-		} finally {
-			setLoadingMore(false);
-			setLoadingInitial(false);
-		}
-	}, [hasMore, limit, loadingMore, offset]);
+				const json = await res.json();
+				const newItems: RunFeedItem[] = json.items || [];
 
-	// Initial load
+				setItems((prev) => [...prev, ...newItems]);
+
+				// Advance offset by however many we actually received
+				const received = newItems.length;
+				setOffset((prevOffset) => prevOffset + received);
+
+				// Backend tells us if there might be more
+				const backendHasMore = json.has_more ?? received === count;
+				if (!backendHasMore || received === 0) {
+					setHasMore(false);
+				}
+			} catch (err) {
+				console.error(err);
+			} finally {
+				setLoadingMore(false);
+				setLoadingInitial(false);
+			}
+		},
+		[hasMore, loadingMore, offset]
+	);
+
+	// -------------------------------
+	// Initial load: one batch
+	// -------------------------------
 	useEffect(() => {
-		loadMore();
-	}, [loadMore]);
+		// Load INITIAL_BATCH items once on mount
+		loadMore(INITIAL_BATCH);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
 
-	// IntersectionObserver for “load more when near bottom”
+	// ------------------------------------------------
+	// Track which feed item is visible (by index)
+	// ------------------------------------------------
 	useEffect(() => {
-		const target = loaderRef.current;
-		if (!target) return;
+		if (items.length === 0) return;
 
 		const observer = new IntersectionObserver(
 			(entries) => {
-				if (entries[0].isIntersecting) {
-					loadMore();
-				}
+				entries.forEach((entry) => {
+					if (entry.isIntersecting) {
+						const idxAttr = entry.target.getAttribute("data-index");
+						if (!idxAttr) return;
+
+						const idx = Number(idxAttr);
+						if (!Number.isNaN(idx)) {
+							setVisibleIndex(idx);
+						}
+					}
+				});
 			},
-			{ rootMargin: "200px" }
+			{
+				threshold: 0.6, // 60% of the card must be visible to count as "current"
+			}
 		);
 
-		observer.observe(target);
+		itemRefs.current.forEach((el) => el && observer.observe(el));
+
 		return () => observer.disconnect();
-	}, [loadMore]);
+	}, [items]);
+
+	// ------------------------------------------------
+	// Scroll-driven loading:
+	// Desired total = INITIAL_BATCH + visibleIndex
+	// i.e. scroll down by 1 card -> 1 more run fetched
+	// ------------------------------------------------
+	useEffect(() => {
+		if (!hasMore || loadingMore) return;
+		if (items.length === 0) return;
+
+		const desiredTotal = INITIAL_BATCH + visibleIndex;
+
+		if (items.length < desiredTotal) {
+			// We only ever fetch 1 at a time in this phase
+			loadMore(INCREMENT_BATCH);
+		}
+	}, [visibleIndex, items.length, hasMore, loadingMore, loadMore]);
 
 	function handleLike(run_id: string) {
 		console.log("Like run", run_id);
@@ -76,6 +131,9 @@ export default function FeedPage() {
 		console.log("Comment on run", run_id);
 	}
 
+	// -------------------------------
+	// Render
+	// -------------------------------
 	if (loadingInitial && items.length === 0) {
 		return (
 			<div className="min-h-screen flex items-center justify-center text-neutral-300 font-['VT323'] text-4xl">
@@ -93,7 +151,11 @@ export default function FeedPage() {
 			<div className="w-full max-w-4xl flex flex-col gap-8 pb-10">
 				{items.map((run, index) => (
 					<article
-						key={`${run.run_id}-${index}`}
+						key={run.run_id}
+						data-index={index}
+						ref={(el: HTMLDivElement | null) => {
+							itemRefs.current[index] = el;
+						}}
 						className="border border-neutral-800 rounded-3xl bg-neutral-950/80 shadow-[0_0_18px_rgba(0,0,0,0.85)] px-3 sm:px-4 py-4"
 					>
 						{/* Header: username */}
@@ -146,9 +208,17 @@ export default function FeedPage() {
 					</article>
 				))}
 
-				{/* Sentinel for infinite scroll */}
-				<div ref={loaderRef} className="h-10 flex items-center justify-center text-neutral-500 text-xs font-mono">
-					{loadingMore ? "Loading more..." : hasMore ? "" : "No more runs"}
+				{/* Status row with main blinking loader style */}
+				<div className="h-16 flex items-center justify-center text-neutral-500 text-xs font-mono">
+					{loadingMore ? (
+						<p className="animate-[flicker_1.4s_steps(2)_infinite] tracking-widest text-neutral-300 font-['VT323'] text-2xl">
+							LOADING…
+						</p>
+					) : hasMore ? (
+						"Scroll to see more runs"
+					) : (
+						"No more runs"
+					)}
 				</div>
 			</div>
 		</div>
