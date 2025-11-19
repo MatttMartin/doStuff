@@ -111,7 +111,7 @@ export default function ChallengePage() {
 				const rr = await fetch(`${API_BASE}/runs`, {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ user_id: uid, caption: null, public: true }),
+					body: JSON.stringify({ user_id: uid, caption: null, public: false }),
 				});
 				const newRun = await rr.json();
 				storedRun = newRun.id;
