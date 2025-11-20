@@ -5,6 +5,19 @@ body {
 	-webkit-user-select: none;
 	user-select: none;
 	-webkit-touch-callout: none;
+	min-height: 100%;
+	background-color: #030712;
+	color: #e5e7eb;
+}
+
+body {
+	margin: 0;
+	overscroll-behavior-y: contain;
+}
+
+#root {
+	min-height: 100vh;
+	background-color: #030712;
 }
 
 * {

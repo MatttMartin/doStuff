@@ -17,8 +17,8 @@ interface RunFeedItem {
 	steps: StepItem[];
 }
 
-const CAROUSEL_WIDTH_CLASS = "w-full max-w-md sm:max-w-lg md:max-w-xl mx-auto";
-const META_WIDTH_CLASS = "w-[95%] sm:w-[90%] md:w-[90%] max-w-lg mx-auto";
+const CAROUSEL_WIDTH_CLASS = "w-full";
+const META_WIDTH_CLASS = "w-full";
 
 // How many runs to show immediately when the page loads
 const INITIAL_BATCH = 3;
@@ -276,8 +276,8 @@ export default function FeedPage() {
 			</div>
 
 			{/* CONTENT BELOW FIXED HEADER */}
-			<div className="pt-20 px-4 pb-6 flex flex-col items-center w-full">
-				<div className="w-full max-w-4xl flex flex-col gap-8 pb-10">
+			<div className="pt-20 pb-6 flex flex-col w-full">
+				<div className="w-full flex flex-col gap-8 pb-10">
 					{items.map((run, index) => {
 						const coverIndex = run.steps.findIndex((step) => step.is_cover);
 						const initialCarouselIndex = coverIndex >= 0 ? coverIndex : 0;
@@ -289,7 +289,7 @@ export default function FeedPage() {
 								ref={(el: HTMLDivElement | null) => {
 									itemRefs.current[index] = el;
 								}}
-								className="rounded-3xl bg-neutral-950/80 shadow-[0_0_18px_rgba(0,0,0,0.85)] px-3 sm:px-4 py-3"
+								className="w-full rounded-3xl bg-neutral-950/80 shadow-[0_0_18px_rgba(0,0,0,0.85)] px-3 sm:px-4 py-3"
 							>
 								{/* Header */}
 								<div className="flex items-center justify-between mb-2">
