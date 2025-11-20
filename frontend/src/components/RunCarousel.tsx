@@ -16,10 +16,6 @@ export interface StepItem {
 
 interface RunCarouselProps {
 	steps: StepItem[];
-	/** show red trash icon (used on Summary page) */
-	showDelete?: boolean;
-	/** called when trash icon is clicked */
-	onDelete?: () => void;
 	/**
 	 * If false, videos will NOT autoplay, even when this carousel slide is active.
 	 * FeedPage will use this to only autoplay on the card that's actually visible.
@@ -41,8 +37,6 @@ const DEFAULT_CAROUSEL_ASPECT_RATIO = 4 / 3;
 
 export default function RunCarousel({
 	steps,
-	showDelete = false,
-	onDelete,
 	autoPlayActive = true,
 	initialIndex = 0,
 	coverStepId = null,
@@ -130,10 +124,12 @@ useEffect(() => {
 		[recomputeCarouselAspectRatio]
 	);
 
+	const proofSignature = steps.map((step) => `${step.id ?? "?"}:${step.proof_url ?? ""}`).join("|");
+
 	useEffect(() => {
 		mediaAspectRatiosRef.current = {};
 		setCarouselAspectRatio(DEFAULT_CAROUSEL_ASPECT_RATIO);
-	}, [steps]);
+	}, [proofSignature]);
 
 	const ensureVideoPlaying = useCallback(
 		(idx: number) => {
@@ -408,25 +404,8 @@ useEffect(() => {
 				</>
 			)}
 
-			{/* Bottom row: absolutely centered dots + optional trash on the left */}
+			{/* Bottom row: absolutely centered dots */}
 			<div className="mt-0.5 relative h-4">
-				{showDelete && (
-					<button
-						type="button"
-						onClick={onDelete}
-						className="absolute left-6 bottom-0 flex items-center justify-center text-red-500 hover:text-red-300 transition-transform duration-150 hover:scale-110"
-						aria-label="Delete run"
-					>
-						<svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.2">
-							<rect x="4" y="5" width="8" height="9" rx="1" />
-							<path d="M3 5h10" />
-							<path d="M6 3h4l1 2H5z" />
-							<path d="M7 7v5" />
-							<path d="M9 7v5" />
-						</svg>
-					</button>
-				)}
-
 				{steps.length > 1 && (
 					<div className="absolute left-1/2 bottom-0 -translate-x-1/2 flex items-center gap-2">
 						{steps.map((step, idx) => (

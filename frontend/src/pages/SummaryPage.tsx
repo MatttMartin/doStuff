@@ -4,6 +4,7 @@ import RunCarousel from "../components/RunCarousel";
 import type { StepItem } from "../components/RunCarousel";
 
 const API_BASE = import.meta.env.VITE_API_BASE as string;
+const CONTENT_MAX_WIDTH = "w-full max-w-md sm:max-w-lg md:max-w-xl mx-auto";
 
 export default function SummaryPage() {
 	const [steps, setSteps] = useState<StepItem[]>([]);
@@ -13,6 +14,8 @@ export default function SummaryPage() {
 	const [caption, setCaption] = useState<string>("");
 	const [nickname, setNickname] = useState<string>("");
 	const [userId, setUserId] = useState<string | null>(null);
+	const postButtonRef = useRef<HTMLButtonElement | null>(null);
+	const [postButtonWidth, setPostButtonWidth] = useState(0);
 	const defaultCoverAttempted = useRef(false);
 
 	useEffect(() => {
@@ -40,7 +43,6 @@ export default function SummaryPage() {
 
 				const runRes = await fetch(`${API_BASE}/runs/${stored}`);
 				const runJson = await runRes.json();
-				setIsPublic(!!runJson.public);
 				setCaption(runJson.caption ?? "");
 				setNickname(runJson.username ?? "Anonymous");
 				setUserId(runJson.user_id ?? null);
@@ -51,6 +53,18 @@ export default function SummaryPage() {
 		}
 
 		load();
+	}, []);
+
+	useEffect(() => {
+		function updatePostButtonWidth() {
+			if (postButtonRef.current) {
+				setPostButtonWidth(postButtonRef.current.offsetWidth);
+			}
+		}
+
+		updatePostButtonWidth();
+		window.addEventListener("resize", updatePostButtonWidth);
+		return () => window.removeEventListener("resize", updatePostButtonWidth);
 	}, []);
 
 	// -----------------------------
@@ -198,20 +212,18 @@ async function handlePost() {
 				RUN SUMMARY
 			</h1>
 
-			<div className="w-full max-w-2xl flex flex-col items-center gap-6">
-				<div className="w-full">
+			<div className="w-full max-w-2xl flex flex-col items-center gap-3">
+				<div className={CONTENT_MAX_WIDTH}>
 					<RunCarousel
 						steps={steps}
-						showDelete
-						onDelete={handleDelete}
 						initialIndex={initialCarouselIndex}
 						coverStepId={coverStepId}
 						onSetCover={handleSetCover}
 					/>
 				</div>
 
-				<div className="w-full">
-					<label htmlFor="nickname" className="block text-sm uppercase tracking-[0.3em] text-neutral-500 mb-2">
+				<div className={CONTENT_MAX_WIDTH}>
+					<label htmlFor="nickname" className="block text-sm uppercase tracking-[0.3em] text-neutral-500 mb-1">
 						Nickname
 					</label>
 					<input
@@ -222,11 +234,11 @@ async function handlePost() {
 						placeholder="Anonymous"
 						className="w-full rounded-2xl bg-black/60 border border-neutral-800 px-4 py-3 text-lg text-neutral-100 focus:outline-none focus:border-cyan-300 focus:ring-1 focus:ring-cyan-400 transition-all"
 					/>
-					<p className="mt-1 text-xs font-mono text-neutral-500">Leave blank to post as Anonymous.</p>
+					<p className="mt-0.5 text-xs font-mono text-neutral-500">Leave blank to post as Anonymous.</p>
 				</div>
 
-				<div className="w-full">
-					<label htmlFor="caption" className="block text-sm uppercase tracking-[0.3em] text-neutral-500 mb-2">
+				<div className={CONTENT_MAX_WIDTH}>
+					<label htmlFor="caption" className="block text-sm uppercase tracking-[0.3em] text-neutral-500 mb-1">
 						Caption
 					</label>
 					<textarea
@@ -238,23 +250,46 @@ async function handlePost() {
 					/>
 				</div>
 
-				<button
-					type="button"
-					onClick={handlePost}
-					className="
-            mt-2 px-20 py-3
+				<div className={`${CONTENT_MAX_WIDTH} relative mt-1 flex items-center justify-center`}>
+					<button
+						type="button"
+						onClick={handleDelete}
+						className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center text-red-500 hover:text-red-300 transition-transform duration-150 hover:scale-110"
+						style={{
+							left: postButtonWidth
+								? `calc(25% - ${postButtonWidth / 4}px)`
+								: "20%",
+						}}
+						aria-label="Delete run"
+					>
+						<svg viewBox="0 0 16 16" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.2">
+							<rect x="4" y="5" width="8" height="9" rx="1" />
+							<path d="M3 5h10" />
+							<path d="M6 3h4l1 2H5z" />
+							<path d="M7 7v5" />
+							<path d="M9 7v5" />
+						</svg>
+					</button>
+
+					<button
+						type="button"
+						onClick={handlePost}
+						ref={postButtonRef}
+						className="
+            px-20 py-3
             bg-neutral-900 border border-neutral-700 rounded-xl
             text-lg sm:text-xl tracking-widest
             font-['VT323'] text-neutral-100
             hover:border-cyan-400 hover:shadow-[0_0_18px_rgba(0,255,255,0.35)]
             transition-all duration-200
           "
-				>
-					POST
-				</button>
+					>
+						POST
+					</button>
+				</div>
 
 				{/* Public/Private toggle */}
-				<div className="mt-1 flex items-center justify-center gap-4 text-xs sm:text-sm font-mono">
+				<div className="mt-0.5 flex items-center justify-center gap-2 text-xs sm:text-sm font-mono">
 					<button
 						type="button"
 						onClick={() => handleVisibilityChange(false)}

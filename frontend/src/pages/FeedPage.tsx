@@ -1,4 +1,4 @@
-// src/pages/FeedPage.tsx
+﻿// src/pages/FeedPage.tsx
 import { useEffect, useState, useRef, useCallback } from "react";
 import RunCarousel from "../components/RunCarousel";
 import type { StepItem } from "../components/RunCarousel";
@@ -17,8 +17,10 @@ interface RunFeedItem {
 	steps: StepItem[];
 }
 
-const CAROUSEL_WIDTH_CLASS = "w-full";
-const META_WIDTH_CLASS = "w-full";
+const CARD_CONTENT_WIDTH_CLASS = "w-full max-w-md sm:max-w-lg md:max-w-xl mx-auto";
+const CARD_CONTENT_GUTTER_CLASS = "px-1 sm:px-2";
+const CAROUSEL_WIDTH_CLASS = CARD_CONTENT_WIDTH_CLASS;
+const META_WIDTH_CLASS = `${CARD_CONTENT_WIDTH_CLASS} ${CARD_CONTENT_GUTTER_CLASS}`;
 
 // How many runs to show immediately when the page loads
 const INITIAL_BATCH = 3;
@@ -238,7 +240,7 @@ export default function FeedPage() {
 	if (loadingInitial && items.length === 0) {
 		return (
 			<div className="min-h-screen flex items-center justify-center text-neutral-300 font-['VT323'] text-4xl">
-				<p className="animate-[flicker_1.4s_steps(2)_infinite] tracking-widest">LOADING…</p>
+				<p className="animate-[flicker_1.4s_steps(2)_infinite] tracking-widest">LOADINGâ€¦</p>
 			</div>
 		);
 	}
@@ -277,7 +279,7 @@ export default function FeedPage() {
 
 			{/* CONTENT BELOW FIXED HEADER */}
 			<div className="pt-20 pb-6 flex flex-col w-full">
-				<div className="w-full flex flex-col gap-8 pb-10">
+				<div className="w-full flex flex-col gap-0 pb-10">
 					{items.map((run, index) => {
 						const coverIndex = run.steps.findIndex((step) => step.is_cover);
 						const initialCarouselIndex = coverIndex >= 0 ? coverIndex : 0;
@@ -289,10 +291,12 @@ export default function FeedPage() {
 								ref={(el: HTMLDivElement | null) => {
 									itemRefs.current[index] = el;
 								}}
-								className="w-full rounded-3xl bg-neutral-950/80 shadow-[0_0_18px_rgba(0,0,0,0.85)] px-3 sm:px-4 py-3"
+								className="w-full rounded-3xl bg-black shadow-[0_0_18px_rgba(0,0,0,0.85)] px-3 sm:px-4 py-3"
 							>
 								{/* Header */}
-								<div className="flex items-center justify-between mb-2">
+								<div
+									className={`${CARD_CONTENT_WIDTH_CLASS} ${CARD_CONTENT_GUTTER_CLASS} flex items-center justify-between mb-2`}
+								>
 									<div className="flex items-center gap-1.5">
 										<div className="w-7 h-7 rounded-full border border-neutral-700 bg-neutral-900 flex items-center justify-center text-xs">
 											{run.username.slice(0, 2).toUpperCase()}
@@ -359,8 +363,7 @@ export default function FeedPage() {
 										{run.caption && (
 											<div className="border-t border-neutral-800/60 pt-1.5 text-xs text-neutral-200 font-mono">
 												<p className="break-words whitespace-pre-line leading-snug">
-													<span className="font-bold text-neutral-50">{run.username}</span>{" "}
-													{run.caption}
+													<span className="font-bold text-neutral-50">{run.username}</span> {run.caption}
 												</p>
 											</div>
 										)}
@@ -374,7 +377,7 @@ export default function FeedPage() {
 					<div className="h-16 flex items-center justify-center text-neutral-500 text-xs font-mono">
 						{loadingMore ? (
 							<p className="animate-[flicker_1.4s_steps(2)_infinite] tracking-widest text-neutral-300 font-['VT323'] text-2xl">
-								LOADING…
+								LOADINGâ€¦
 							</p>
 						) : hasMore ? (
 							"Scroll to see more runs"
