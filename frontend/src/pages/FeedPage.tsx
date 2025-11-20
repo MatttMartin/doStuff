@@ -289,7 +289,7 @@ export default function FeedPage() {
 								ref={(el: HTMLDivElement | null) => {
 									itemRefs.current[index] = el;
 								}}
-								className="border border-neutral-800 rounded-3xl bg-neutral-950/80 shadow-[0_0_18px_rgba(0,0,0,0.85)] px-3 sm:px-4 py-3"
+								className="rounded-3xl bg-neutral-950/80 shadow-[0_0_18px_rgba(0,0,0,0.85)] px-3 sm:px-4 py-3"
 							>
 								{/* Header */}
 								<div className="flex items-center justify-between mb-2">
@@ -357,9 +357,11 @@ export default function FeedPage() {
 										</div>
 
 										{run.caption && (
-											<div className="flex flex-wrap items-baseline gap-2 border-t border-neutral-800/60 pt-1.5 text-xs text-neutral-200 font-mono leading-snug">
-												<span className="font-bold text-neutral-50">{run.username}</span>
-												<span className="break-words whitespace-pre-line flex-1 min-w-[60%]">{run.caption}</span>
+											<div className="border-t border-neutral-800/60 pt-1.5 text-xs text-neutral-200 font-mono">
+												<p className="break-words whitespace-pre-line leading-snug">
+													<span className="font-bold text-neutral-50">{run.username}</span>{" "}
+													{run.caption}
+												</p>
 											</div>
 										)}
 									</div>

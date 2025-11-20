@@ -37,6 +37,8 @@ function isVideoUrl(url: string | null): boolean {
 	return /\.(mp4|webm|mov|ogg)(\?|$)/i.test(url);
 }
 
+const DEFAULT_CAROUSEL_ASPECT_RATIO = 4 / 3;
+
 export default function RunCarousel({
 	steps,
 	showDelete = false,
@@ -102,6 +104,36 @@ useEffect(() => {
 	const holdTimeoutRef = useRef<Record<number, number>>({});
 	const holdActiveRef = useRef<Record<number, boolean>>({});
 	const suppressClickRef = useRef<Record<number, boolean>>({});
+	const mediaAspectRatiosRef = useRef<Record<number, number>>({});
+	const [carouselAspectRatio, setCarouselAspectRatio] = useState(DEFAULT_CAROUSEL_ASPECT_RATIO);
+
+	const recomputeCarouselAspectRatio = useCallback(() => {
+		const ratios = Object.values(mediaAspectRatiosRef.current);
+		if (!ratios.length) {
+			setCarouselAspectRatio(DEFAULT_CAROUSEL_ASPECT_RATIO);
+			return;
+		}
+		const tallestRatio = Math.min(...ratios);
+		const nextRatio = tallestRatio < DEFAULT_CAROUSEL_ASPECT_RATIO ? tallestRatio : DEFAULT_CAROUSEL_ASPECT_RATIO;
+		setCarouselAspectRatio((prev) => (Math.abs(prev - nextRatio) < 0.0001 ? prev : nextRatio));
+	}, []);
+
+	const registerMediaAspectRatio = useCallback(
+		(idx: number, width: number, height: number) => {
+			if (!width || !height || !isFinite(width) || !isFinite(height)) return;
+			const ratio = width / height;
+			if (!isFinite(ratio) || ratio <= 0) return;
+			if (mediaAspectRatiosRef.current[idx] === ratio) return;
+			mediaAspectRatiosRef.current[idx] = ratio;
+			recomputeCarouselAspectRatio();
+		},
+		[recomputeCarouselAspectRatio]
+	);
+
+	useEffect(() => {
+		mediaAspectRatiosRef.current = {};
+		setCarouselAspectRatio(DEFAULT_CAROUSEL_ASPECT_RATIO);
+	}, [steps]);
 
 	const ensureVideoPlaying = useCallback(
 		(idx: number) => {
@@ -222,7 +254,7 @@ useEffect(() => {
 	if (!steps.length) return null;
 
 	return (
-		<div className="relative w-full max-w-md sm:max-w-lg md:max-w-xl pb-2 mx-auto">
+		<div className="relative w-full max-w-md sm:max-w-lg md:max-w-xl mx-auto">
 			{/* Embla viewport */}
 			<div className="overflow-hidden" ref={emblaRef}>
 				<div className="flex">
@@ -258,7 +290,10 @@ useEffect(() => {
 										</p>
 									</div>
 
-									<div className="relative mt-1 mb-1 rounded-2xl border border-neutral-800 bg-neutral-900/70 overflow-hidden h-[28rem] md:h-[32rem] flex items-center justify-center">
+									<div
+										className="relative mt-1 mb-3 -mx-4 sm:-mx-5 overflow-hidden flex items-center justify-center"
+										style={{ aspectRatio: carouselAspectRatio }}
+									>
 										{s.proof_url ? (
 											proofIsVideo ? (
 												<video
@@ -266,14 +301,22 @@ useEffect(() => {
 														videoRefs.current[idx] = el;
 													}}
 													src={s.proof_url}
-													className="w-full h-full object-contain select-none"
+													className="w-full h-auto shrink-0 select-none"
 													autoPlay={autoPlayActive && idx === selectedIndex}
 													playsInline
 													muted={isMuted}
 													preload="auto"
 													loop
 													draggable={false}
-													onLoadedData={() => ensureVideoPlaying(idx)}
+													onLoadedData={(event) => {
+														ensureVideoPlaying(idx);
+														const el = event.currentTarget;
+														registerMediaAspectRatio(
+															idx,
+															el.videoWidth || el.clientWidth || el.offsetWidth || 1,
+															el.videoHeight || el.clientHeight || el.offsetHeight || 1
+														);
+													}}
 													onContextMenu={(e) => e.preventDefault()}
 													style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none" }}
 													onClick={() => handleVideoClick(idx)}
@@ -283,7 +326,14 @@ useEffect(() => {
 													onPointerCancel={() => handlePointerRelease(idx)}
 												/>
 											) : (
-												<img src={s.proof_url} className="w-full h-full object-contain" />
+												<img
+													src={s.proof_url}
+													className="block w-full h-auto shrink-0 select-none"
+													onLoad={(event) => {
+														const el = event.currentTarget;
+														registerMediaAspectRatio(idx, el.naturalWidth || el.width, el.naturalHeight || el.height || 1);
+													}}
+												/>
 											)
 										) : (
 											<div className="text-neutral-600 font-mono text-xs">no proof</div>
@@ -359,12 +409,12 @@ useEffect(() => {
 			)}
 
 			{/* Bottom row: absolutely centered dots + optional trash on the left */}
-			<div className="mt-2 relative h-6">
+			<div className="mt-0.5 relative h-4">
 				{showDelete && (
 					<button
 						type="button"
 						onClick={onDelete}
-						className="absolute left-6 flex items-center justify-center text-red-500 hover:text-red-300 transition-transform duration-150 hover:scale-110"
+						className="absolute left-6 bottom-0 flex items-center justify-center text-red-500 hover:text-red-300 transition-transform duration-150 hover:scale-110"
 						aria-label="Delete run"
 					>
 						<svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.2">
@@ -378,7 +428,7 @@ useEffect(() => {
 				)}
 
 				{steps.length > 1 && (
-					<div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
+					<div className="absolute left-1/2 bottom-0 -translate-x-1/2 flex items-center gap-2">
 						{steps.map((step, idx) => (
 							<button
 								key={`dot-${step.id ?? idx}`}
