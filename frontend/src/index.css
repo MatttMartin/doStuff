@@ -120,6 +120,16 @@ body {
 	}
 }
 
+.plus-animated {
+	animation: hueshift 8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.plus-animated {
+		animation: none;
+	}
+}
+
 /* Hide scrollbars */
 .scrollbar-hide::-webkit-scrollbar {
 	display: none;

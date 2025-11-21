@@ -295,7 +295,7 @@ export default function FeedPage() {
 				"
 						aria-label="Back to home"
 					>
-						<svg viewBox="0 0 20 20" className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth="2">
+						<svg viewBox="0 0 20 20" className="w-7 h-7 plus-animated" fill="none" stroke="currentColor" strokeWidth="2">
 							<defs>
 								<linearGradient id="plusSwirl" x1="0" y1="0" x2="20" y2="0" gradientUnits="userSpaceOnUse">
 									<stop offset="0%" stopColor="#fffbe1">

@@ -106,20 +106,20 @@ export default function HomePage() {
 				}}
 			/>
 
-			<div className="relative z-10 flex flex-col items-center text-center text-neutral-100 font-['VT323'] max-w-4xl w-full scale-[1.05] md:scale-[1.15]">
-				<p className="text-sm md:text-base uppercase tracking-[0.6em] text-neutral-500 mb-6">By Matthew Martin</p>
-				<h1 className="text-6xl sm:text-7xl md:text-8xl drop-shadow-[0_0_18px_rgba(255,255,255,0.22)] leading-none">
+			<div className="relative z-10 flex flex-col items-center text-center text-neutral-100 font-['VT323'] max-w-5xl w-full scale-[1.15] md:scale-[1.25]">
+				<p className="text-sm md:text-base uppercase tracking-[0.6em] text-neutral-500 mb-4">By Matthew Martin</p>
+				<h1 className="text-8xl sm:text-9xl md:text-[96px] drop-shadow-[0_0_18px_rgba(255,255,255,0.22)] leading-none">
 					Do Stuff
 				</h1>
-				<p className="mt-6 text-base sm:text-lg md:text-xl text-neutral-300 font-mono tracking-[0.45em]">
+				<p className="mt-4 text-sm sm:text-lg md:text-xl text-neutral-300 font-mono tracking-[0.45em]">
 					Can you... do stuff?
 				</p>
 
-				<div className="mt-12 flex flex-col items-center gap-5">
+				<div className="mt-14 flex flex-col items-center gap-5">
 					<button
 						type="button"
 						onClick={() => navigate("/challenge")}
-						className="group relative w-full max-w-sm rounded-3xl border border-neutral-700 bg-black/70 px-10 py-5 text-2xl md:text-[26px] tracking-[0.4em] text-neutral-100 transition-all duration-200 hover:border-cyan-400 hover:text-cyan-200 hover:shadow-[0_0_25px_rgba(0,255,255,0.35)] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+						className="group relative w-full max-w-sm rounded-3xl border border-neutral-700 bg-black/70 px-10 py-5 text-xl md:text-[22px] tracking-[0.38em] text-neutral-100 transition-all duration-200 hover:border-cyan-400 hover:text-cyan-200 hover:shadow-[0_0_25px_rgba(0,255,255,0.35)] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
 					>
 						<span
 							className="absolute inset-0 rounded-2xl bg-gradient-to-r from-cyan-500/10 via-transparent to-transparent opacity-0 blur-lg transition-opacity duration-300 group-hover:opacity-100"
@@ -143,7 +143,7 @@ export default function HomePage() {
 				<button
 					type="button"
 					onClick={() => navigate("/feed")}
-					className="mt-20 text-sm md:text-base font-mono uppercase tracking-[0.55em] text-neutral-500 hover:text-cyan-300 transition-colors duration-200"
+					className="mt-10 text-xs md:text-sm font-mono uppercase tracking-[0.45em] text-neutral-500 hover:text-cyan-300 transition-colors duration-200"
 				>
 					<div className="inline-flex items-center gap-3">
 						<span className="h-1 w-8 bg-neutral-700" aria-hidden />
