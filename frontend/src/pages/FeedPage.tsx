@@ -22,8 +22,6 @@ interface RunFeedItem {
 
 const CARD_CONTENT_WIDTH_CLASS = "w-full max-w-md sm:max-w-lg md:max-w-xl mx-auto";
 const CARD_CONTENT_GUTTER_CLASS = "px-1 sm:px-2";
-const CAROUSEL_WIDTH_CLASS = CARD_CONTENT_WIDTH_CLASS;
-const META_WIDTH_CLASS = `${CARD_CONTENT_WIDTH_CLASS} ${CARD_CONTENT_GUTTER_CLASS}`;
 
 // How many runs to show immediately when the page loads
 const INITIAL_BATCH = 3;
@@ -301,18 +299,38 @@ export default function FeedPage() {
 							<defs>
 								<linearGradient id="plusSwirl" x1="0" y1="0" x2="20" y2="0" gradientUnits="userSpaceOnUse">
 									<stop offset="0%" stopColor="#fffbe1">
-										<animate attributeName="stop-color" values="#fffbe1;#fff2c7;#fffbe1" dur="8s" repeatCount="indefinite" />
+										<animate
+											attributeName="stop-color"
+											values="#fffbe1;#fff2c7;#fffbe1"
+											dur="8s"
+											repeatCount="indefinite"
+										/>
 									</stop>
 									<stop offset="35%" stopColor="#ffe58a" stopOpacity="0.85">
 										<animate attributeName="offset" values="0.24;0.4;0.3" dur="8s" repeatCount="indefinite" />
-										<animate attributeName="stop-color" values="#ffe58a;#ffd05b;#ffe58a" dur="8s" repeatCount="indefinite" />
+										<animate
+											attributeName="stop-color"
+											values="#ffe58a;#ffd05b;#ffe58a"
+											dur="8s"
+											repeatCount="indefinite"
+										/>
 									</stop>
 									<stop offset="70%" stopColor="#ffce54" stopOpacity="0.78">
 										<animate attributeName="offset" values="0.6;0.78;0.64" dur="8s" repeatCount="indefinite" />
-										<animate attributeName="stop-color" values="#ffce54;#ffe08a;#ffce54" dur="8s" repeatCount="indefinite" />
+										<animate
+											attributeName="stop-color"
+											values="#ffce54;#ffe08a;#ffce54"
+											dur="8s"
+											repeatCount="indefinite"
+										/>
 									</stop>
 									<stop offset="100%" stopColor="#fff8da">
-										<animate attributeName="stop-color" values="#fff8da;#ffeab6;#fff8da" dur="8s" repeatCount="indefinite" />
+										<animate
+											attributeName="stop-color"
+											values="#fff8da;#ffeab6;#fff8da"
+											dur="8s"
+											repeatCount="indefinite"
+										/>
 									</stop>
 									<animateTransform
 										attributeName="gradientTransform"
@@ -366,7 +384,9 @@ export default function FeedPage() {
 												<div className="text-sm sm:text-base tracking-wide">{run.username}</div>
 											</div>
 
-											{run.public && <span className="text-[10px] uppercase tracking-[0.2em] text-cyan-300">PUBLIC</span>}
+											{run.public && (
+												<span className="text-[10px] uppercase tracking-[0.2em] text-cyan-300">PUBLIC</span>
+											)}
 										</div>
 
 										<div className="w-full">
@@ -422,7 +442,9 @@ export default function FeedPage() {
 															</svg>
 														</button>
 														{run.comment_count > 0 && (
-															<span className="text-xs font-mono text-neutral-500">{formatCount(run.comment_count)}</span>
+															<span className="text-xs font-mono text-neutral-500">
+																{formatCount(run.comment_count)}
+															</span>
 														)}
 													</div>
 												</div>
