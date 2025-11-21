@@ -88,6 +88,17 @@ export default function ChallengePage() {
 		setFile(null);
 	}
 
+	async function fetchRunState(rid: string): Promise<RunState | null> {
+		try {
+			const res = await fetch(`${API_BASE}/runs/${rid}`);
+			if (!res.ok) return null;
+			return (await res.json()) as RunState;
+		} catch (err) {
+			console.error(err);
+			return null;
+		}
+	}
+
 	// --------------------------------------------
 	// INIT: create/restore run and infer time left
 	// --------------------------------------------
@@ -106,8 +117,47 @@ export default function ChallengePage() {
 			const levelJson: Level[] = await levelRes.json();
 			setLevels(levelJson);
 
-			// 2. Ensure we have a run id
+			// 2. If there's a finished run waiting to be posted/deleted, send them to summary first
+			const completedRunId = localStorage.getItem("last_run_id");
+			if (completedRunId) {
+				const completedRun = await fetchRunState(completedRunId);
+				if (completedRun?.finished_at) {
+					setRunId(completedRunId);
+					setSkipsUsed(completedRun.skips_used ?? 0);
+					setChallenge(null);
+					setShowUploadStep(false);
+					setTimeLeft(0);
+					setLoading(false);
+					navigate("/summary", { replace: true });
+					return;
+				}
+
+				if (!completedRun) {
+					localStorage.removeItem("last_run_id");
+				}
+			}
+
+			// 3. Ensure we have a current run id (or restore existing)
 			let storedRun = localStorage.getItem("current_run_id") ?? "";
+			let run: RunState | null = null;
+
+			if (storedRun) {
+				run = await fetchRunState(storedRun);
+
+				if (!run) {
+					localStorage.removeItem("current_run_id");
+					storedRun = "";
+				} else if (run.finished_at) {
+					setRunId(storedRun);
+					setSkipsUsed(run.skips_used ?? 0);
+					setChallenge(null);
+					setShowUploadStep(false);
+					setTimeLeft(0);
+					finalizeRun(storedRun);
+					setLoading(false);
+					return;
+				}
+			}
 
 			if (!storedRun) {
 				const rr = await fetch(`${API_BASE}/runs`, {
@@ -122,9 +172,15 @@ export default function ChallengePage() {
 
 			setRunId(storedRun);
 
-			// 3. Load current run state
-			const runRes = await fetch(`${API_BASE}/runs/${storedRun}`);
-			const run: RunState = await runRes.json();
+			if (!run) {
+				const runRes = await fetch(`${API_BASE}/runs/${storedRun}`);
+				run = (await runRes.json()) as RunState;
+			}
+
+			if (!run) {
+				setLoading(false);
+				return;
+			}
 
 			// If run finished, just show finished screen
 			if (run.finished_at) {
@@ -133,6 +189,7 @@ export default function ChallengePage() {
 				setShowUploadStep(false);
 				setTimeLeft(0);
 				setLoading(false);
+				finalizeRun(storedRun);
 				return;
 			}
 
@@ -425,9 +482,10 @@ export default function ChallengePage() {
 	// 	return /\.(mp4|webm|mov|ogg)(\?|$)/i.test(url);
 	// }
 
-	function finalizeRun() {
-		if (!runId) return;
-		localStorage.setItem("last_run_id", runId); // <-- NEW
+	function finalizeRun(completedId?: string | null) {
+		const targetId = completedId ?? runId;
+		if (!targetId) return;
+		localStorage.setItem("last_run_id", targetId);
 		localStorage.removeItem("current_run_id");
 	}
 

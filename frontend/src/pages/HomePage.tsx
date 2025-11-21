@@ -2,22 +2,71 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import LoadingScreen from "../components/LoadingScreen";
 
+const API_BASE = import.meta.env.VITE_API_BASE as string;
+
+interface RunStatus {
+	finished_at: string | null;
+}
+
 export default function HomePage() {
 	const navigate = useNavigate();
 	const [checking, setChecking] = useState(true);
 
 	useEffect(() => {
-		const rid = localStorage.getItem("current_run_id");
+		let cancelled = false;
 
-		// If there is an active run, instantly redirect to challenge page
-		if (rid) {
-			navigate("/challenge");
-			return;
+		async function fetchRun(rid: string): Promise<RunStatus | null> {
+			try {
+				const res = await fetch(`${API_BASE}/runs/${rid}`);
+				if (!res.ok) return null;
+				return (await res.json()) as RunStatus;
+			} catch {
+				return null;
+			}
 		}
 
-		// No active run - allow homepage to show
-		setChecking(false);
-	}, []);
+		async function checkExistingRun() {
+			const lastRunId = localStorage.getItem("last_run_id");
+			if (lastRunId) {
+				const run = await fetchRun(lastRunId);
+				if (run?.finished_at) {
+					if (!cancelled) navigate("/summary", { replace: true });
+					return;
+				}
+
+				if (!run) {
+					localStorage.removeItem("last_run_id");
+				}
+			}
+
+			const currentRunId = localStorage.getItem("current_run_id");
+			if (currentRunId) {
+				const run = await fetchRun(currentRunId);
+
+				if (run?.finished_at) {
+					localStorage.setItem("last_run_id", currentRunId);
+					localStorage.removeItem("current_run_id");
+					if (!cancelled) navigate("/summary", { replace: true });
+					return;
+				}
+
+				if (run) {
+					if (!cancelled) navigate("/challenge");
+					return;
+				}
+
+				localStorage.removeItem("current_run_id");
+			}
+
+			if (!cancelled) setChecking(false);
+		}
+
+		checkExistingRun();
+
+		return () => {
+			cancelled = true;
+		};
+	}, [navigate]);
 
 	// While checking localStorage, show loading screen
 	if (checking) {

@@ -20,6 +20,7 @@ export default function SummaryPage() {
 	const defaultCoverAttempted = useRef(false);
 	const hasSummary = runId !== null && steps.length > 0;
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+	const emptyRunHandled = useRef(false);
 
 	useEffect(() => {
 		defaultCoverAttempted.current = false;
@@ -158,6 +159,9 @@ export default function SummaryPage() {
 		// optional: call finish endpoint again (does nothing if already finished)
 		await fetch(`${API_BASE}/runs/${runId}/finish`, { method: "POST" });
 
+		localStorage.removeItem("last_run_id");
+		localStorage.removeItem("current_run_id");
+
 		window.location.href = "/feed";
 	}
 
@@ -201,10 +205,30 @@ export default function SummaryPage() {
 	}, [runId, steps]);
 
 	useEffect(() => {
-		if (!loading && !hasSummary) {
+		if (loading) return;
+		if (!runId) return;
+
+		// If the run was finished without any steps (user gave up immediately),
+		// delete it and clear local storage so they can start fresh.
+		if (steps.length === 0 && !emptyRunHandled.current) {
+			emptyRunHandled.current = true;
+			(async () => {
+				try {
+					await fetch(`${API_BASE}/runs/${runId}`, { method: "DELETE" });
+				} catch (err) {
+					console.error("Failed to delete empty run:", err);
+				}
+				localStorage.removeItem("last_run_id");
+				localStorage.removeItem("current_run_id");
+				window.location.href = "/feed";
+			})();
+			return;
+		}
+
+		if (!hasSummary) {
 			window.location.href = "/feed";
 		}
-	}, [loading, hasSummary]);
+	}, [loading, hasSummary, runId, steps.length]);
 
 	// -----------------------------
 	// Render
