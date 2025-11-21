@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { FormEvent, PointerEvent } from "react";
+import type { FormEvent, MouseEvent, PointerEvent } from "react";
 
 const API_BASE = import.meta.env.VITE_API_BASE as string;
 
@@ -112,13 +112,27 @@ export default function CommentsSheet({ runId, runOwner, open, onClose, viewerId
 		setInput("");
 	}, [runId]);
 
-	const handleOutside = useCallback(
-		(event: PointerEvent<HTMLDivElement> | MouseEvent) => {
+	const closeIfOutside = useCallback(
+		(target: EventTarget | null) => {
 			if (!sheetRef.current) return;
-			if (sheetRef.current.contains(event.target as Node)) return;
+			if (sheetRef.current.contains(target as Node)) return;
 			onClose();
 		},
 		[onClose]
+	);
+
+	const handlePointerOutside = useCallback(
+		(event: PointerEvent<HTMLDivElement>) => {
+			closeIfOutside(event.target);
+		},
+		[closeIfOutside]
+	);
+
+	const handleMouseOutside = useCallback(
+		(event: MouseEvent<HTMLDivElement>) => {
+			closeIfOutside(event.target);
+		},
+		[closeIfOutside]
 	);
 
 	const handleSubmit = useCallback(
@@ -206,8 +220,8 @@ export default function CommentsSheet({ runId, runOwner, open, onClose, viewerId
 		<div
 			className="fixed inset-0 z-[60]"
 			style={{ pointerEvents: isMounted ? "auto" : "none" }}
-			onPointerDownCapture={handleOutside}
-			onClick={handleOutside}
+			onPointerDownCapture={handlePointerOutside}
+			onClick={handleMouseOutside}
 		>
 			<div
 				onClick={onClose}
