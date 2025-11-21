@@ -1,7 +1,8 @@
-﻿// src/pages/FeedPage.tsx
+// src/pages/FeedPage.tsx
 import { useEffect, useState, useRef, useCallback } from "react";
 import RunCarousel from "../components/RunCarousel";
 import type { StepItem } from "../components/RunCarousel";
+import LoadingScreen from "../components/LoadingScreen";
 
 const API_BASE = import.meta.env.VITE_API_BASE as string;
 
@@ -238,11 +239,7 @@ export default function FeedPage() {
 	// Render
 	// -------------------------------
 	if (loadingInitial && items.length === 0) {
-		return (
-			<div className="min-h-screen flex items-center justify-center text-neutral-300 font-['VT323'] text-4xl">
-				<p className="animate-[flicker_1.4s_steps(2)_infinite] tracking-widest">LOADINGâ€¦</p>
-			</div>
-		);
+		return <LoadingScreen />;
 	}
 
 	return (
@@ -377,7 +374,7 @@ export default function FeedPage() {
 					<div className="h-16 flex items-center justify-center text-neutral-500 text-xs font-mono">
 						{loadingMore ? (
 							<p className="animate-[flicker_1.4s_steps(2)_infinite] tracking-widest text-neutral-300 font-['VT323'] text-2xl">
-								LOADINGâ€¦
+								LOADING…
 							</p>
 						) : hasMore ? (
 							"Scroll to see more runs"

@@ -1,6 +1,6 @@
-import LoadingOverlay from "../loadingOverlay";
-
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import LoadingScreen from "../components/LoadingScreen";
 
 const API_BASE = import.meta.env.VITE_API_BASE as string;
 
@@ -49,6 +49,7 @@ const MAX_SKIPS = 1;
 // Component
 // --------------------------------------------
 export default function ChallengePage() {
+	const navigate = useNavigate();
 	const [levels, setLevels] = useState<Level[]>([]);
 	const [runId, setRunId] = useState<string | null>(null);
 	const [challenge, setChallenge] = useState<Level | null>(null);
@@ -439,36 +440,21 @@ export default function ChallengePage() {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
+	useEffect(() => {
+		if (!loading && !challenge) {
+			navigate("/summary", { replace: true });
+		}
+	}, [loading, challenge, navigate]);
+
 	// --------------------------------------------
 	// Render
 	// --------------------------------------------
-	if (loading) {
-		// Match LoaderWrapper visual style
-		return (
-			<div className="min-h-screen flex items-center justify-center text-neutral-300 font-['VT323'] text-4xl">
-				<p className="animate-[flicker_1.4s_steps(2)_infinite] tracking-widest">LOADING…</p>
-			</div>
-		);
-	}
-
-	if (!challenge) {
-		return (
-			<div className="min-h-screen flex flex-col items-center justify-center text-neutral-500 font-['VT323'] text-3xl text-center gap-4">
-				Run finished.
-				<button
-					className="text-neutral-300 underline font-mono text-lg"
-					onClick={() => (window.location.href = "/summary")}
-				>
-					View Summary
-				</button>
-			</div>
-		);
+	if (loading || !challenge) {
+		return <LoadingScreen />;
 	}
 
 	return (
 		<div className="w-full min-h-screen flex items-center justify-center px-4 text-center font-['VT323'] text-neutral-100">
-			{loading && <LoadingOverlay />}
-
 			<div className="w-full max-w-md space-y-10">
 				<p className="text-neutral-500 font-mono tracking-wide">LEVEL {challenge.level_number}</p>
 
@@ -507,8 +493,6 @@ export default function ChallengePage() {
 				{/* PROOF STEP */}
 				{showUploadStep && (
 					<div className="space-y-6 mt-6">
-						<p className="text-neutral-400 text-sm font-mono">Upload proof (optional)</p>
-
 						<label className="flex flex-col items-center justify-center w-full h-56 border-2 border-dashed border-neutral-600 rounded-xl cursor-pointer hover:border-blue-400 bg-neutral-900/40 transition">
 							<input type="file" accept="image/*,video/*" className="hidden" onChange={handleFile} />
 

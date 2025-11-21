@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import LoadingScreen from "../components/LoadingScreen";
 
 export default function HomePage() {
 	const navigate = useNavigate();
@@ -14,21 +15,13 @@ export default function HomePage() {
 			return;
 		}
 
-		// No active run → allow homepage to show
+		// No active run - allow homepage to show
 		setChecking(false);
 	}, []);
 
 	// While checking localStorage, show loading screen
 	if (checking) {
-		return (
-			<div className="relative min-h-screen w-full bg-black text-white font-['VT323'] overflow-hidden">
-				<div className="absolute inset-0 bg-gradient-to-br from-neutral-900 via-black to-neutral-950 opacity-[0.15] animate-[hueshift_18s_linear_infinite]"></div>
-
-				<div className="absolute inset-0 flex items-center justify-center text-neutral-300 text-4xl">
-					<p className="animate-[flicker_1.4s_steps(2)_infinite] tracking-widest">LOADING…</p>
-				</div>
-			</div>
-		);
+		return <LoadingScreen />;
 	}
 
 	return (
