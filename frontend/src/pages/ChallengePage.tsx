@@ -37,11 +37,10 @@ interface RunState {
 // Styles
 // --------------------------------------------
 const buttonPrimary =
-	"w-full py-4 rounded-xl font-['VT323'] text-3xl tracking-wide " +
-	"bg-neutral-900/60 backdrop-blur-sm border border-neutral-700/80 " +
-	"hover:border-blue-400 hover:bg-neutral-900/80 transition-all duration-200 " +
-	"shadow-[inset_0_0_8px_rgba(255,255,255,0.08),0_0_6px_rgba(0,0,0,0.4)] " +
-	"hover:shadow-[inset_0_0_12px_rgba(255,255,255,0.12),0_0_12px_rgba(0,140,255,0.35)]";
+	"w-full rounded-2xl border border-neutral-700 bg-black/70 px-8 py-4 text-3xl tracking-[0.3em] " +
+	"text-neutral-100 font-['VT323'] transition-all duration-200 shadow-[0_0_20px_rgba(0,0,0,0.35)] " +
+	"hover:border-cyan-400 hover:text-cyan-200 hover:shadow-[0_0_25px_rgba(0,255,255,0.35)] " +
+	"focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-black";
 
 const MAX_SKIPS = 1;
 
@@ -453,70 +452,139 @@ export default function ChallengePage() {
 		return <LoadingScreen />;
 	}
 
+	const displayTimeLeft = Math.max(0, timeLeft);
+	const skipsRemaining = Math.max(0, MAX_SKIPS - skipsUsed);
+
 	return (
-		<div className="w-full min-h-screen flex items-center justify-center px-4 text-center font-['VT323'] text-neutral-100">
-			<div className="w-full max-w-md space-y-10">
-				<p className="text-neutral-500 font-mono tracking-wide">LEVEL {challenge.level_number}</p>
+		<div className="relative min-h-screen w-full overflow-hidden bg-gradient-to-b from-black via-neutral-950 to-black px-4 py-10 text-neutral-100 font-['VT323']">
+			<div
+				className="absolute inset-0 pointer-events-none opacity-30"
+				style={{
+					backgroundImage:
+						"radial-gradient(circle at 20% 20%, rgba(0,255,255,0.2), transparent 55%), radial-gradient(circle at 85% 10%, rgba(255,0,153,0.18), transparent 50%)",
+				}}
+			/>
+			<div
+				className="absolute inset-0 pointer-events-none opacity-[0.08]"
+				style={{
+					backgroundImage:
+						"linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(0deg, rgba(255,255,255,0.03) 1px, transparent 1px)",
+					backgroundSize: "80px 80px",
+				}}
+			/>
 
-				<h2 className="text-5xl tracking-tight drop-shadow-[0_0_8px_rgba(0,140,255,0.3)]">{challenge.title}</h2>
+			<div className="relative z-10 mx-auto flex w-full max-w-4xl flex-col gap-8 text-center">
+				<div className="space-y-4">
+					<p className="text-xs uppercase tracking-[0.6em] text-neutral-500">LEVEL {challenge.level_number}</p>
+					<h2 className="text-4xl sm:text-5xl md:text-6xl drop-shadow-[0_0_18px_rgba(0,140,255,0.35)]">
+						{challenge.title}
+					</h2>
+					{challenge.description && (
+						<p className="text-neutral-300 text-base sm:text-lg font-mono tracking-[0.3em] leading-relaxed">
+							{challenge.description}
+						</p>
+					)}
+				</div>
 
-				<p className="text-neutral-400 text-lg leading-relaxed font-mono">{challenge.description}</p>
-
-				{/* Timer (only on main step) */}
-				{!showUploadStep && <div className="text-5xl font-bold text-yellow-400">{formatTime(timeLeft)}</div>}
-
-				{/* MAIN STEP */}
 				{!showUploadStep && (
-					<div className="flex flex-col items-center gap-2 mt-4">
-						<button onClick={handleDone} className={buttonPrimary}>
-							DONE
-						</button>
+					<div className="grid gap-6 text-left">
+						<div className="rounded-3xl border border-neutral-800 bg-black/60 p-6 backdrop-blur-sm shadow-[0_0_30px_rgba(0,0,0,0.35)] space-y-4">
+							<div className="flex items-center justify-between text-xs font-mono uppercase tracking-[0.4em] text-neutral-500">
+								<span>Time left</span>
+								<span>Skips {skipsRemaining}</span>
+							</div>
+							<p className="text-5xl sm:text-6xl text-amber-300 drop-shadow-[0_0_18px_rgba(255,196,0,0.45)]">
+								{formatTime(displayTimeLeft)}
+							</p>
+							<div className="h-1 w-full overflow-hidden rounded-full bg-neutral-800">
+								<span
+									className="block h-full w-full bg-gradient-to-r from-orange-500 via-amber-200 to-orange-500 animate-[pulse_2s_linear_infinite]"
+									aria-hidden
+								/>
+							</div>
+							<p className="text-sm font-mono uppercase tracking-[0.3em] text-neutral-500">
+								Get your camera out - proof upload comes next.
+							</p>
+						</div>
 
-						{skipsUsed < MAX_SKIPS && (
-							<button
-								onClick={handleSkipChallenge}
-								className="text-neutral-400 hover:text-neutral-200 underline text-lg font-mono"
-							>
-								Skip challenge ({MAX_SKIPS - skipsUsed} left)
+						<div className="rounded-3xl border border-neutral-800 bg-black/60 p-6 backdrop-blur-sm shadow-[0_0_30px_rgba(0,0,0,0.35)] space-y-4">
+							<p className="text-neutral-300 text-sm font-mono tracking-[0.3em]">
+								Complete the prompt before time hits zero.
+							</p>
+							<button onClick={handleDone} className={buttonPrimary}>
+								DONE
 							</button>
-						)}
 
-						<button
-							onClick={handleGiveUp}
-							className="text-neutral-500 hover:text-neutral-200 underline text-sm font-mono mt-1"
-						>
-							Give up &amp; end run
-						</button>
-					</div>
-				)}
-
-				{/* PROOF STEP */}
-				{showUploadStep && (
-					<div className="space-y-6 mt-6">
-						<label className="flex flex-col items-center justify-center w-full h-56 border-2 border-dashed border-neutral-600 rounded-xl cursor-pointer hover:border-blue-400 bg-neutral-900/40 transition">
-							<input type="file" accept="image/*,video/*" className="hidden" onChange={handleFile} />
-
-							{preview ? (
-								previewType?.startsWith("video/") ? (
-									<video src={preview} className="h-full object-contain" controls muted playsInline />
-								) : (
-									<img src={preview} className="h-full object-contain" />
-								)
-							) : (
-								<span className="text-neutral-500 text-xl font-mono">Tap to upload proof</span>
-							)}
-						</label>
-
-						<div className="flex flex-col items-center gap-3">
-							{preview && (
-								<button onClick={handleSubmitWithProof} className={buttonPrimary}>
-									NEXT
+							{skipsUsed < MAX_SKIPS && (
+								<button
+									onClick={handleSkipChallenge}
+									className="w-full rounded-2xl border border-neutral-800 bg-black/40 px-4 py-3 text-xs font-mono uppercase tracking-[0.4em] text-neutral-300 transition-colors duration-200 hover:border-cyan-400 hover:text-cyan-200"
+								>
+									Skip Challenge · {skipsRemaining} left
 								</button>
 							)}
 
 							<button
+								onClick={handleGiveUp}
+								className="w-full rounded-2xl border border-transparent px-4 py-3 text-xs font-mono uppercase tracking-[0.4em] text-red-300 transition-colors duration-200 hover:text-red-200"
+							>
+								Give up &amp; end run
+							</button>
+						</div>
+					</div>
+				)}
+
+				{showUploadStep && (
+					<div className="grid gap-6 text-left">
+						<label className="relative flex min-h-[18rem] w-full flex-col items-center justify-center gap-4 rounded-3xl border-2 border-dashed border-neutral-700 bg-black/40 p-6 text-center font-mono tracking-[0.2em] text-neutral-400 transition hover:border-cyan-400">
+							<input type="file" accept="image/*,video/*" className="hidden" onChange={handleFile} />
+							{preview ? (
+								previewType?.startsWith("video/") ? (
+									<video
+										src={preview}
+										className="h-full w-full max-h-64 rounded-2xl border border-neutral-800 object-contain"
+										controls
+										muted
+										playsInline
+									/>
+								) : (
+									<img
+										src={preview}
+										className="h-full w-full max-h-64 rounded-2xl border border-neutral-800 object-contain"
+										alt="Proof preview"
+									/>
+								)
+							) : (
+								<>
+									<span className="text-sm uppercase tracking-[0.5em] text-neutral-500">Proof Upload</span>
+									<span>Tap to upload photo/video</span>
+								</>
+							)}
+						</label>
+
+						<div className="rounded-3xl border border-neutral-800 bg-black/60 p-6 backdrop-blur-sm shadow-[0_0_30px_rgba(0,0,0,0.35)] space-y-4">
+							<p className="text-neutral-300 text-sm font-mono tracking-[0.3em]">Lock in your run with evidence.</p>
+
+							{preview ? (
+								<>
+									<button onClick={handleSubmitWithProof} className={buttonPrimary}>
+										NEXT
+									</button>
+									<button
+										type="button"
+										onClick={clearProofPreview}
+										className="w-full rounded-2xl border border-neutral-800 bg-black/40 px-4 py-3 text-xs font-mono uppercase tracking-[0.4em] text-neutral-300 transition-colors duration-200 hover:border-cyan-400 hover:text-cyan-200"
+									>
+										Remove file
+									</button>
+								</>
+							) : (
+								<></>
+							)}
+
+							<button
 								onClick={handleSkipProof}
-								className="text-neutral-400 hover:text-neutral-200 underline text-lg font-mono"
+								className="w-full rounded-2xl border border-transparent px-4 py-3 text-xs font-mono uppercase tracking-[0.4em] text-red-300 transition-colors duration-200 hover:text-red-200"
 							>
 								Skip proof
 							</button>

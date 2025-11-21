@@ -247,7 +247,7 @@ export default function FeedPage() {
 			{/* FIXED HEADER */}
 			<div
 				className="
-			fixed top-0 left-0 w-full 
+			fixed top-0 left-0 w-full
 			h-14 flex items-center justify-center 
 			bg-black/90 backdrop-blur-sm
 			border-b border-neutral-800 
@@ -261,21 +261,55 @@ export default function FeedPage() {
 				<button
 					onClick={() => (window.location.href = "/")}
 					className="
-					absolute right-5 p-1
-					text-neutral-200 hover:text-cyan-200 transition-colors
+					group absolute right-5 p-1 text-neutral-100 transition-all duration-200 hover:text-amber-200 hover:drop-shadow-[0_0_18px_rgba(255,210,120,0.55)]
 					drop-shadow-[0_0_12px_rgba(0,0,0,0.8)]
 				"
 					aria-label="Back to home"
 				>
 					<svg viewBox="0 0 20 20" className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth="2">
-						<path d="M10 3v14" strokeLinecap="round" />
-						<path d="M3 10h14" strokeLinecap="round" />
+						<defs>
+							<linearGradient id="plusSwirl" x1="0" y1="0" x2="20" y2="0" gradientUnits="userSpaceOnUse">
+								<stop offset="0%" stopColor="#fffbe1">
+									<animate attributeName="stop-color" values="#fffbe1;#fff2c7;#fffbe1" dur="8s" repeatCount="indefinite" />
+								</stop>
+								<stop offset="35%" stopColor="#ffe58a" stopOpacity="0.85">
+									<animate attributeName="offset" values="0.24;0.4;0.3" dur="8s" repeatCount="indefinite" />
+									<animate attributeName="stop-color" values="#ffe58a;#ffd05b;#ffe58a" dur="8s" repeatCount="indefinite" />
+								</stop>
+								<stop offset="70%" stopColor="#ffce54" stopOpacity="0.78">
+									<animate attributeName="offset" values="0.6;0.78;0.64" dur="8s" repeatCount="indefinite" />
+									<animate attributeName="stop-color" values="#ffce54;#ffe08a;#ffce54" dur="8s" repeatCount="indefinite" />
+								</stop>
+								<stop offset="100%" stopColor="#fff8da">
+									<animate attributeName="stop-color" values="#fff8da;#ffeab6;#fff8da" dur="8s" repeatCount="indefinite" />
+								</stop>
+								<animateTransform
+									attributeName="gradientTransform"
+									type="translate"
+									values="-26 0;-26 0;22 0;22 0;-26 0"
+									keyTimes="0;0.3;0.5;0.8;1"
+									dur="8s"
+									repeatCount="indefinite"
+								/>
+								<animateTransform
+									attributeName="gradientTransform"
+									additive="sum"
+									type="skewX"
+									values="0;7;-5;4;0"
+									keyTimes="0;0.35;0.55;0.82;1"
+									dur="8s"
+									repeatCount="indefinite"
+								/>
+							</linearGradient>
+						</defs>
+						<path d="M10 3v14" strokeLinecap="round" stroke="url(#plusSwirl)" />
+						<path d="M3 10h14" strokeLinecap="round" stroke="url(#plusSwirl)" />
 					</svg>
 				</button>
 			</div>
 
 			{/* CONTENT BELOW FIXED HEADER */}
-			<div className="pt-20 pb-6 flex flex-col w-full">
+			<div className="pt-16 pb-6 flex flex-col w-full">
 				<div className="w-full flex flex-col gap-0 pb-10">
 					{items.map((run, index) => {
 						const coverIndex = run.steps.findIndex((step) => step.is_cover);
