@@ -33,7 +33,8 @@ function isVideoUrl(url: string | null): boolean {
 	return /\.(mp4|webm|mov|ogg)(\?|$)/i.test(url);
 }
 
-const DEFAULT_CAROUSEL_ASPECT_RATIO = 4 / 3;
+const DEFAULT_CAROUSEL_ASPECT_RATIO = 4 / 3; // width : height (landscape)
+const MIN_CAROUSEL_ASPECT_RATIO = 3 / 4; // width : height (portrait cap: max height ratio 4:3)
 
 export default function RunCarousel({
 	steps,
@@ -45,6 +46,7 @@ export default function RunCarousel({
 	const [selectedIndex, setSelectedIndex] = useState(initialIndex);
 	const [muteMap, setMuteMap] = useState<Record<number, boolean>>({});
 	const [indicatorMap, setIndicatorMap] = useState<Record<number, "muted" | "unmuted">>({});
+	const [mediaRatioMap, setMediaRatioMap] = useState<Record<number, number>>({});
 	const [emblaRef, emblaApi] = useEmblaCarousel({
 		loop: false,
 		align: "center",
@@ -108,7 +110,8 @@ useEffect(() => {
 			return;
 		}
 		const tallestRatio = Math.min(...ratios);
-		const nextRatio = tallestRatio < DEFAULT_CAROUSEL_ASPECT_RATIO ? tallestRatio : DEFAULT_CAROUSEL_ASPECT_RATIO;
+		const clamped = Math.max(tallestRatio, MIN_CAROUSEL_ASPECT_RATIO);
+		const nextRatio = clamped < DEFAULT_CAROUSEL_ASPECT_RATIO ? clamped : DEFAULT_CAROUSEL_ASPECT_RATIO;
 		setCarouselAspectRatio((prev) => (Math.abs(prev - nextRatio) < 0.0001 ? prev : nextRatio));
 	}, []);
 
@@ -119,6 +122,7 @@ useEffect(() => {
 			if (!isFinite(ratio) || ratio <= 0) return;
 			if (mediaAspectRatiosRef.current[idx] === ratio) return;
 			mediaAspectRatiosRef.current[idx] = ratio;
+			setMediaRatioMap((prev) => (prev[idx] === ratio ? prev : { ...prev, [idx]: ratio }));
 			recomputeCarouselAspectRatio();
 		},
 		[recomputeCarouselAspectRatio]
@@ -126,10 +130,11 @@ useEffect(() => {
 
 	const proofSignature = steps.map((step) => `${step.id ?? "?"}:${step.proof_url ?? ""}`).join("|");
 
-	useEffect(() => {
-		mediaAspectRatiosRef.current = {};
-		setCarouselAspectRatio(DEFAULT_CAROUSEL_ASPECT_RATIO);
-	}, [proofSignature]);
+useEffect(() => {
+	mediaAspectRatiosRef.current = {};
+	setMediaRatioMap({});
+	setCarouselAspectRatio(DEFAULT_CAROUSEL_ASPECT_RATIO);
+}, [proofSignature]);
 
 	const ensureVideoPlaying = useCallback(
 		(idx: number) => {
@@ -259,6 +264,11 @@ useEffect(() => {
 						const isMuted = muteMap[idx] ?? true;
 						const indicatorState = proofIsVideo ? indicatorMap[idx] ?? (isMuted ? "muted" : null) : null;
 						const completedAtLabel = formatDate(s.completed_at);
+						const mediaRatio = mediaRatioMap[idx];
+						const shouldCropTall = typeof mediaRatio === "number" && mediaRatio < MIN_CAROUSEL_ASPECT_RATIO;
+						const mediaCommonClasses = shouldCropTall
+							? "w-full h-full object-cover shrink-0 select-none"
+							: "w-full h-auto shrink-0 select-none";
 
 						return (
 							<div key={`slide-${s.id ?? idx}`} className="flex-[0_0_100%] px-1 sm:px-2">
@@ -297,7 +307,7 @@ useEffect(() => {
 														videoRefs.current[idx] = el;
 													}}
 													src={s.proof_url}
-													className="w-full h-auto shrink-0 select-none"
+													className={mediaCommonClasses}
 													autoPlay={autoPlayActive && idx === selectedIndex}
 													playsInline
 													muted={isMuted}
@@ -320,11 +330,11 @@ useEffect(() => {
 													onPointerUp={() => handlePointerRelease(idx)}
 													onPointerLeave={() => handlePointerRelease(idx)}
 													onPointerCancel={() => handlePointerRelease(idx)}
-												/>
-											) : (
+													/>
+												) : (
 												<img
 													src={s.proof_url}
-													className="block w-full h-auto shrink-0 select-none"
+													className={"block " + mediaCommonClasses}
 													onLoad={(event) => {
 														const el = event.currentTarget;
 														registerMediaAspectRatio(idx, el.naturalWidth || el.width, el.naturalHeight || el.height || 1);

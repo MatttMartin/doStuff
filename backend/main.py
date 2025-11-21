@@ -495,6 +495,81 @@ def get_like_count(db: Session, run_id: UUID) -> int:
     return int(count or 0)
 
 
+# ------------------------------------------------------------
+# COMMENTS
+# ------------------------------------------------------------
+class CommentCreate(BaseModel):
+    user_id: UUID
+    content: str
+
+
+@app.get("/runs/{run_id}/comments")
+def list_comments(
+    run_id: UUID,
+    limit: int = 50,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+):
+    run = db.query(Run).filter(Run.id == run_id).first()
+    if not run:
+        raise HTTPException(404, "Run not found")
+
+    rows = (
+        db.query(Comment, User)
+        .join(User, Comment.user_id == User.id)
+        .filter(Comment.run_id == run_id)
+        .order_by(Comment.created_at.asc())
+        .limit(limit)
+        .offset(offset)
+        .all()
+    )
+
+    items = [
+        {
+            "id": comment.id,
+            "run_id": str(comment.run_id),
+            "user_id": str(comment.user_id),
+            "username": user.username,
+            "content": comment.content,
+            "created_at": comment.created_at.isoformat() if comment.created_at else None,
+        }
+        for comment, user in rows
+    ]
+
+    return {
+        "items": items,
+        "next_offset": offset + len(items),
+        "has_more": len(items) == limit,
+    }
+
+
+@app.post("/runs/{run_id}/comments")
+def create_comment(run_id: UUID, payload: CommentCreate, db: Session = Depends(get_db)):
+    run = db.query(Run).filter(Run.id == run_id).first()
+    if not run:
+        raise HTTPException(404, "Run not found")
+
+    user = ensure_user(db, payload.user_id)
+
+    content = (payload.content or "").strip()
+    if not content:
+        raise HTTPException(400, "Comment content cannot be empty.")
+
+    comment = Comment(run_id=run_id, user_id=payload.user_id, content=content)
+    db.add(comment)
+    db.commit()
+    db.refresh(comment)
+
+    return {
+        "id": comment.id,
+        "run_id": str(comment.run_id),
+        "user_id": str(comment.user_id),
+        "username": user.username,
+        "content": comment.content,
+        "created_at": comment.created_at.isoformat() if comment.created_at else None,
+    }
+
+
 @app.post("/runs/{run_id}/like")
 def like_run(run_id: UUID, payload: LikePayload, db: Session = Depends(get_db)):
     run = db.query(Run).filter(Run.id == run_id).first()
@@ -720,15 +795,25 @@ def list_public_runs(
         .group_by(Like.run_id)
         .subquery()
     )
+    comment_counts_sub = (
+        db.query(
+            Comment.run_id.label("run_id"),
+            func.count(Comment.id).label("comment_count"),
+        )
+        .group_by(Comment.run_id)
+        .subquery()
+    )
 
     rows = (
         db.query(
             Run,
             User,
             func.coalesce(like_counts_sub.c.like_count, 0).label("like_count"),
+            func.coalesce(comment_counts_sub.c.comment_count, 0).label("comment_count"),
         )
         .join(User, Run.user_id == User.id)
         .outerjoin(like_counts_sub, Run.id == like_counts_sub.c.run_id)
+        .outerjoin(comment_counts_sub, Run.id == comment_counts_sub.c.run_id)
         .filter(Run.public == True)
         .order_by(desc(Run.started_at))
         .limit(limit)
@@ -751,7 +836,7 @@ def list_public_runs(
         }
 
     items = []
-    for run, user, like_count in rows:
+    for run, user, like_count, comment_count in rows:
         # Only completed steps (to match your /runs/{id}/steps change)
         steps = (
             db.query(RunStep)
@@ -778,6 +863,7 @@ def list_public_runs(
             )
 
         like_count_int = int(like_count or 0)
+        comment_count_int = int(comment_count or 0)
         items.append(
             {
                 "run_id": str(run.id),
@@ -787,6 +873,7 @@ def list_public_runs(
                 "public": run.public,
                 "cover_step_id": run.cover_step_id,
                 "like_count": like_count_int,
+                "comment_count": comment_count_int,
                 "liked_by_viewer": str(run.id) in viewer_liked_ids,
                 "steps": step_dicts,
             }

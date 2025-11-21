@@ -21,6 +21,7 @@ interface RunState {
 	caption: string | null;
 	started_at: string | null;
 	finished_at: string | null;
+	public?: boolean;
 
 	pending_level_id: number | null;
 	pending_started_at: string | null;
@@ -37,8 +38,8 @@ interface RunState {
 // Styles
 // --------------------------------------------
 const buttonPrimary =
-	"w-full rounded-2xl border border-neutral-700 bg-black/70 px-8 py-4 text-3xl tracking-[0.3em] " +
-	"text-neutral-100 font-['VT323'] transition-all duration-200 shadow-[0_0_20px_rgba(0,0,0,0.35)] " +
+	"w-full rounded-2xl border border-neutral-700 bg-black/70 px-6 py-3 text-2xl tracking-[0.24em] " +
+	"md:px-8 md:py-4 md:text-3xl md:tracking-[0.3em] text-neutral-100 font-['VT323'] transition-all duration-200 shadow-[0_0_20px_rgba(0,0,0,0.35)] " +
 	"hover:border-cyan-400 hover:text-cyan-200 hover:shadow-[0_0_25px_rgba(0,255,255,0.35)] " +
 	"focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-black";
 
@@ -122,14 +123,19 @@ export default function ChallengePage() {
 			if (completedRunId) {
 				const completedRun = await fetchRunState(completedRunId);
 				if (completedRun?.finished_at) {
-					setRunId(completedRunId);
-					setSkipsUsed(completedRun.skips_used ?? 0);
-					setChallenge(null);
-					setShowUploadStep(false);
-					setTimeLeft(0);
-					setLoading(false);
-					navigate("/summary", { replace: true });
-					return;
+					if (completedRun.public === true) {
+						localStorage.removeItem("last_run_id");
+						localStorage.removeItem("current_run_id");
+					} else {
+						setRunId(completedRunId);
+						setSkipsUsed(completedRun.skips_used ?? 0);
+						setChallenge(null);
+						setShowUploadStep(false);
+						setTimeLeft(0);
+						setLoading(false);
+						navigate("/summary", { replace: true });
+						return;
+					}
 				}
 
 				if (!completedRun) {
@@ -148,14 +154,20 @@ export default function ChallengePage() {
 					localStorage.removeItem("current_run_id");
 					storedRun = "";
 				} else if (run.finished_at) {
-					setRunId(storedRun);
-					setSkipsUsed(run.skips_used ?? 0);
-					setChallenge(null);
-					setShowUploadStep(false);
-					setTimeLeft(0);
-					finalizeRun(storedRun);
-					setLoading(false);
-					return;
+					if (run.public === true) {
+						localStorage.removeItem("last_run_id");
+						localStorage.removeItem("current_run_id");
+						storedRun = "";
+					} else {
+						setRunId(storedRun);
+						setSkipsUsed(run.skips_used ?? 0);
+						setChallenge(null);
+						setShowUploadStep(false);
+						setTimeLeft(0);
+						finalizeRun(storedRun);
+						setLoading(false);
+						return;
+					}
 				}
 			}
 
@@ -514,7 +526,7 @@ export default function ChallengePage() {
 	const skipsRemaining = Math.max(0, MAX_SKIPS - skipsUsed);
 
 	return (
-		<div className="relative min-h-screen w-full overflow-hidden bg-gradient-to-b from-black via-neutral-950 to-black px-4 py-10 text-neutral-100 font-['VT323']">
+		<div className="relative min-h-screen w-full overflow-hidden bg-gradient-to-b from-black via-neutral-950 to-black px-4 py-6 sm:py-8 md:py-10 text-neutral-100 font-['VT323']">
 			<div
 				className="absolute inset-0 pointer-events-none opacity-30"
 				style={{
@@ -531,14 +543,14 @@ export default function ChallengePage() {
 				}}
 			/>
 
-			<div className="relative z-10 mx-auto flex w-full max-w-4xl flex-col gap-8 text-center">
-				<div className="space-y-4">
-					<p className="text-xs uppercase tracking-[0.6em] text-neutral-500">LEVEL {challenge.level_number}</p>
-					<h2 className="text-4xl sm:text-5xl md:text-6xl drop-shadow-[0_0_18px_rgba(0,140,255,0.35)]">
+			<div className="relative z-10 mx-auto flex w-full max-w-4xl flex-col gap-6 sm:gap-8 text-center">
+				<div className="space-y-3 sm:space-y-4">
+					<p className="text-[11px] uppercase tracking-[0.6em] text-neutral-500">LEVEL {challenge.level_number}</p>
+					<h2 className="text-3xl sm:text-5xl md:text-6xl drop-shadow-[0_0_18px_rgba(0,140,255,0.35)]">
 						{challenge.title}
 					</h2>
 					{challenge.description && (
-						<p className="text-neutral-300 text-base sm:text-lg font-mono tracking-[0.3em] leading-relaxed">
+						<p className="text-neutral-300 text-sm sm:text-lg font-mono tracking-[0.2em] sm:tracking-[0.28em] leading-relaxed">
 							{challenge.description}
 						</p>
 					)}
@@ -546,12 +558,12 @@ export default function ChallengePage() {
 
 				{!showUploadStep && (
 					<div className="grid gap-6 text-left">
-						<div className="rounded-3xl border border-neutral-800 bg-black/60 p-6 backdrop-blur-sm shadow-[0_0_30px_rgba(0,0,0,0.35)] space-y-4">
-							<div className="flex items-center justify-between text-xs font-mono uppercase tracking-[0.4em] text-neutral-500">
+						<div className="rounded-3xl border border-neutral-800 bg-black/60 p-4 sm:p-5 md:p-6 backdrop-blur-sm shadow-[0_0_30px_rgba(0,0,0,0.35)] space-y-3 sm:space-y-4">
+							<div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.34em] sm:tracking-[0.4em] text-neutral-500">
 								<span>Time left</span>
 								<span>Skips {skipsRemaining}</span>
 							</div>
-							<p className="text-5xl sm:text-6xl text-amber-300 drop-shadow-[0_0_18px_rgba(255,196,0,0.45)]">
+							<p className="text-4xl sm:text-5xl text-amber-300 drop-shadow-[0_0_18px_rgba(255,196,0,0.45)]">
 								{formatTime(displayTimeLeft)}
 							</p>
 							<div className="h-1 w-full overflow-hidden rounded-full bg-neutral-800">
@@ -560,13 +572,13 @@ export default function ChallengePage() {
 									aria-hidden
 								/>
 							</div>
-							<p className="text-sm font-mono uppercase tracking-[0.3em] text-neutral-500">
+							<p className="text-xs sm:text-sm font-mono uppercase tracking-[0.2em] sm:tracking-[0.28em] text-neutral-500 leading-relaxed">
 								Get your camera out - proof upload comes next.
 							</p>
 						</div>
 
-						<div className="rounded-3xl border border-neutral-800 bg-black/60 p-6 backdrop-blur-sm shadow-[0_0_30px_rgba(0,0,0,0.35)] space-y-4">
-							<p className="text-neutral-300 text-sm font-mono tracking-[0.3em]">
+						<div className="rounded-3xl border border-neutral-800 bg-black/60 p-4 sm:p-5 md:p-6 backdrop-blur-sm shadow-[0_0_30px_rgba(0,0,0,0.35)] space-y-3 sm:space-y-4">
+							<p className="text-neutral-300 text-[13px] sm:text-sm font-mono tracking-[0.22em] sm:tracking-[0.3em]">
 								Complete the prompt before time hits zero.
 							</p>
 							<button onClick={handleDone} className={buttonPrimary}>
@@ -576,15 +588,15 @@ export default function ChallengePage() {
 							{skipsUsed < MAX_SKIPS && (
 								<button
 									onClick={handleSkipChallenge}
-									className="w-full rounded-2xl border border-neutral-800 bg-black/40 px-4 py-3 text-xs font-mono uppercase tracking-[0.4em] text-neutral-300 transition-colors duration-200 hover:border-cyan-400 hover:text-cyan-200"
+									className="w-full rounded-2xl border border-neutral-800 bg-black/40 px-3 py-2.5 text-[11px] sm:text-xs font-mono uppercase tracking-[0.32em] sm:tracking-[0.4em] text-neutral-300 transition-colors duration-200 hover:border-cyan-400 hover:text-cyan-200"
 								>
-									Skip Challenge · {skipsRemaining} left
+									Skip challenge ({skipsRemaining} left)
 								</button>
 							)}
 
 							<button
 								onClick={handleGiveUp}
-								className="w-full rounded-2xl border border-transparent px-4 py-3 text-xs font-mono uppercase tracking-[0.4em] text-red-300 transition-colors duration-200 hover:text-red-200"
+								className="w-full rounded-2xl border border-transparent px-3 py-2.5 text-[11px] sm:text-xs font-mono uppercase tracking-[0.32em] sm:tracking-[0.4em] text-red-300 transition-colors duration-200 hover:text-red-200"
 							>
 								Give up &amp; end run
 							</button>
@@ -594,13 +606,13 @@ export default function ChallengePage() {
 
 				{showUploadStep && (
 					<div className="grid gap-6 text-left">
-						<label className="relative flex min-h-[18rem] w-full flex-col items-center justify-center gap-4 rounded-3xl border-2 border-dashed border-neutral-700 bg-black/40 p-6 text-center font-mono tracking-[0.2em] text-neutral-400 transition hover:border-cyan-400">
+						<label className="relative flex min-h-[14rem] w-full flex-col items-center justify-center gap-3 sm:gap-4 rounded-3xl border-2 border-dashed border-neutral-700 bg-black/40 p-4 sm:p-5 text-center font-mono tracking-[0.18em] sm:tracking-[0.2em] text-neutral-400 transition hover:border-cyan-400">
 							<input type="file" accept="image/*,video/*" className="hidden" onChange={handleFile} />
 							{preview ? (
 								previewType?.startsWith("video/") ? (
 									<video
 										src={preview}
-										className="h-full w-full max-h-64 rounded-2xl border border-neutral-800 object-contain"
+										className="h-full w-full max-h-56 sm:max-h-64 rounded-2xl border border-neutral-800 object-contain"
 										controls
 										muted
 										playsInline
@@ -608,20 +620,20 @@ export default function ChallengePage() {
 								) : (
 									<img
 										src={preview}
-										className="h-full w-full max-h-64 rounded-2xl border border-neutral-800 object-contain"
+										className="h-full w-full max-h-56 sm:max-h-64 rounded-2xl border border-neutral-800 object-contain"
 										alt="Proof preview"
 									/>
 								)
 							) : (
 								<>
-									<span className="text-sm uppercase tracking-[0.5em] text-neutral-500">Proof Upload</span>
+									<span className="text-[12px] uppercase tracking-[0.42em] sm:tracking-[0.5em] text-neutral-500">Proof Upload</span>
 									<span>Tap to upload photo/video</span>
 								</>
 							)}
 						</label>
 
-						<div className="rounded-3xl border border-neutral-800 bg-black/60 p-6 backdrop-blur-sm shadow-[0_0_30px_rgba(0,0,0,0.35)] space-y-4">
-							<p className="text-neutral-300 text-sm font-mono tracking-[0.3em]">Lock in your run with evidence.</p>
+						<div className="rounded-3xl border border-neutral-800 bg-black/60 p-4 sm:p-5 md:p-6 backdrop-blur-sm shadow-[0_0_30px_rgba(0,0,0,0.35)] space-y-3 sm:space-y-4">
+							<p className="text-neutral-300 text-[13px] sm:text-sm font-mono tracking-[0.22em] sm:tracking-[0.3em]">Lock in your run with evidence.</p>
 
 							{preview ? (
 								<>
@@ -631,7 +643,7 @@ export default function ChallengePage() {
 									<button
 										type="button"
 										onClick={clearProofPreview}
-										className="w-full rounded-2xl border border-neutral-800 bg-black/40 px-4 py-3 text-xs font-mono uppercase tracking-[0.4em] text-neutral-300 transition-colors duration-200 hover:border-cyan-400 hover:text-cyan-200"
+										className="w-full rounded-2xl border border-neutral-800 bg-black/40 px-3 py-2.5 text-[11px] sm:text-xs font-mono uppercase tracking-[0.32em] sm:tracking-[0.4em] text-neutral-300 transition-colors duration-200 hover:border-cyan-400 hover:text-cyan-200"
 									>
 										Remove file
 									</button>
@@ -642,7 +654,7 @@ export default function ChallengePage() {
 
 							<button
 								onClick={handleSkipProof}
-								className="w-full rounded-2xl border border-transparent px-4 py-3 text-xs font-mono uppercase tracking-[0.4em] text-red-300 transition-colors duration-200 hover:text-red-200"
+								className="w-full rounded-2xl border border-transparent px-3 py-2.5 text-[11px] sm:text-xs font-mono uppercase tracking-[0.32em] sm:tracking-[0.4em] text-red-300 transition-colors duration-200 hover:text-red-200"
 							>
 								Skip proof
 							</button>

@@ -6,6 +6,7 @@ const API_BASE = import.meta.env.VITE_API_BASE as string;
 
 interface RunStatus {
 	finished_at: string | null;
+	public?: boolean;
 }
 
 export default function HomePage() {
@@ -30,6 +31,13 @@ export default function HomePage() {
 			if (lastRunId) {
 				const run = await fetchRun(lastRunId);
 				if (run?.finished_at) {
+					if (run.public === true) {
+						// Already posted/shared; clear and allow a fresh start.
+						localStorage.removeItem("last_run_id");
+						localStorage.removeItem("current_run_id");
+						if (!cancelled) setChecking(false);
+						return;
+					}
 					if (!cancelled) navigate("/summary", { replace: true });
 					return;
 				}
@@ -44,6 +52,12 @@ export default function HomePage() {
 				const run = await fetchRun(currentRunId);
 
 				if (run?.finished_at) {
+					if (run.public === true) {
+						localStorage.removeItem("last_run_id");
+						localStorage.removeItem("current_run_id");
+						if (!cancelled) setChecking(false);
+						return;
+					}
 					localStorage.setItem("last_run_id", currentRunId);
 					localStorage.removeItem("current_run_id");
 					if (!cancelled) navigate("/summary", { replace: true });

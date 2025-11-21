@@ -50,6 +50,7 @@ export default function SummaryPage() {
 				setCaption(runJson.caption ?? "");
 				setNickname(runJson.username ?? "Anonymous");
 				setUserId(runJson.user_id ?? null);
+				setIsPublic(runJson.public ?? true);
 			} catch (err) {
 				console.error("Failed to load run summary", err);
 			}
