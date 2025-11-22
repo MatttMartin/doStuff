@@ -128,17 +128,24 @@ export default function FeedPage() {
 
 		const observer = new IntersectionObserver(
 			(entries) => {
-				entries.forEach((entry) => {
-					if (entry.isIntersecting) {
-						const idxAttr = entry.target.getAttribute("data-index");
-						if (!idxAttr) return;
+				let mostVisible: IntersectionObserverEntry | null = null;
 
-						const idx = Number(idxAttr);
-						if (!Number.isNaN(idx)) {
-							setVisibleIndex(idx);
-						}
+				entries.forEach((entry) => {
+					if (!entry.isIntersecting) return;
+					if (!mostVisible || entry.intersectionRatio > mostVisible.intersectionRatio) {
+						mostVisible = entry;
 					}
 				});
+
+				if (!mostVisible) return;
+
+				const idxAttr = mostVisible.target.getAttribute("data-index");
+				if (!idxAttr) return;
+
+				const idx = Number(idxAttr);
+				if (!Number.isNaN(idx)) {
+					setVisibleIndex(idx);
+				}
 			},
 			{
 				threshold: 0.6, // 60% of the card must be visible to count as "current"
